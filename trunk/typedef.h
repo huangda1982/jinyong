@@ -71,7 +71,7 @@ typedef enum {
 	EmMPYin,
 	EmMPYang,
 	EmMPUnified
-} EmMPType;
+} EmNeiliType;
 
 typedef struct
 {
@@ -130,24 +130,23 @@ typedef struct
 	sint16 listNum;
 	sint16 faceIndex;
 	sint32 incLife;
-	char name[10];
-	char nick[10];
+	char name[NAME_LEN];
 	sint16 sexual;
 	sint16 level;
 	sint16 exp;
-	sint16 currentHP;		
-	sint16 maxHP;		
-	sint16 hurt;		
-	sint16 poision;		
+	sint16 life;		
+	sint16 maxLife;		
+	sint16 wound;		
+	sint16 poisioning;		
 	sint16 phyPower;
 	uint16 expForItem;
 	sint16 equip[2];
 	sint16 amiFrameNum[5];
 	sint16 amiDelay[5];
 	sint16 soundDealy[5];
-	sint16 mPType;		
-	sint16 currentMP;		
-	sint16 maxMP;
+	sint16 neiliType;		
+	sint16 neili;		
+	sint16 maxNeili;
 	sint16 attack;		
 	sint16 speed;		
 	sint16 defence;		

@@ -54,13 +54,13 @@
 const uint8 MAX_PRO_LIST[58 - 43 + 1] = {
 	100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 1};
 
-iconv_t g_UTF8ToBig5 = 0;
-iconv_t g_Big5ToUTF8 = 0;
+iconv_t g_utf8ToBig5 = 0;
+iconv_t g_big5ToUtf8 = 0;
 
 uint16 g_HanFontSize = 20;
 uint16 g_EngFontSize = 18;
 
-//以上为贴图的内容及索引
+//贴图的内容及索引
 uint32* g_mapIdxBuff = NULL;
 byte* g_mapPicBuff = NULL;
 
@@ -193,6 +193,9 @@ int main()
 {
 	srand(clock());
 
+	g_utf8ToBig5 = iconv_open("BIG5", "UTF8");
+	g_big5ToUtf8 = iconv_open("UTF8", "BIG5");
+
 	//初始化字体
 	TTF_Init();
 	g_HanFont = TTF_OpenFont(HAN_FONT, g_HanFontSize);
@@ -230,10 +233,7 @@ int main()
 
 	Start();
 
-	TTF_CloseFont(g_HanFont);
-	TTF_CloseFont(g_EngFont);
-	TTF_Quit();
-	SDL_Quit();
+	Quit();
 
 	return 0;
 }
@@ -249,6 +249,9 @@ void Quit()
 
 	TTF_Quit();
 	SDL_Quit();
+
+	iconv_close(g_utf8ToBig5);
+	iconv_close(g_big5ToUtf8);
 
 	exit(0);
 }
@@ -421,14 +424,14 @@ void SaveGame(int slot)
 //等待任意按键
 int WaitAnyKey()
 {
-	SDL_Event event = {0};			//事件
+	SDL_Event event;			//事件
 	while (SDL_WaitEvent(&event)) {
 		if (event.type == SDL_QUIT) {
 			Quit();
 		}
 
-		if (event.type == SDL_KEYDOWN || event.type == SDL_MOUSEBUTTONDOWN) {
-			if (event.key.keysym.sym || event.button.button) {
+		if (event.type == SDL_KEYDOWN) {
+			if (event.key.keysym.sym) {
 				break;
 			}
 		}
@@ -437,30 +440,41 @@ int WaitAnyKey()
 	return event.key.keysym.sym;
 }
 
-uint32 GetRGBAPixel(T_RGB* palette, uint8 color, uint8 alpha, int highlight)
+SDL_Color GetSDLColor(uint8 color)
+{
+	uint32 rgba = COLOR(color);
+	SDL_Color sdlColor = {
+		.r = (rgba & 0xff000000) >> 24,
+		.g = (rgba & 0x00ff0000) >> 16,
+		.b = (rgba & 0x0000ff00) >> 8
+	};
+
+	return sdlColor;
+}
+
+uint32 GetRGBAPixel(uint8 color, uint8 alpha, int highlight)
 {
 	uint32 pixel = 0;
 
-	if (format && palette) {
-		pixel = SDL_MapRGBA(format,
-			(palette[color].r << 2) + (palette[color].r >> 4) - highlight,
-			(palette[color].g << 2) + (palette[color].g >> 4) - highlight,
-			(palette[color].b << 2) + (palette[color].b >> 4) - highlight,
-			alpha);
+	if (g_palette) {
+		pixel = (((g_palette[color].r << 2) + (g_palette[color].r >> 4) - highlight) << 24)
+			+ (((g_palette[color].g << 2) + (g_palette[color].g >> 4) - highlight) << 16)
+			+ (((g_palette[color].b << 2) + (g_palette[color].b >> 4) - highlight) << 8)
+			+ alpha;
 	}
 
 	return pixel;
 }
 
-uint32 GetPalettePixel(SDL_PixelFormat* format, T_RGB* palette, uint8 color, uint8 alpha, int highlight)
+uint32 GetPalettePixel(SDL_PixelFormat* format, uint8 color, uint8 alpha, int highlight)
 {
 	uint32 pixel = 0;
 
-	if (format && palette) {
+	if (format && g_palette) {
 		pixel = SDL_MapRGBA(format,
-			(palette[color].r << 2) + (palette[color].r >> 4) - highlight,
-			(palette[color].g << 2) + (palette[color].g >> 4) - highlight,
-			(palette[color].b << 2) + (palette[color].b >> 4) - highlight,
+			(g_palette[color].r << 2) + (g_palette[color].r >> 4) - highlight,
+			(g_palette[color].g << 2) + (g_palette[color].g >> 4) - highlight,
+			(g_palette[color].b << 2) + (g_palette[color].b >> 4) - highlight,
 			alpha);
 	}
 
@@ -508,7 +522,7 @@ void DrawRLE8Pic(SDL_Surface* surface, int index, int x, int y, uint32* idxBuffe
 	}
 
 	picRect = (T_PicRect*)picBuffer;
-	picBuffer += sizeof(T_Rect);
+	picBuffer += sizeof(T_PicRect);
 	nextPicBuffer = picBuffer + *(idxBuffer + index);
 
 	if (surface) {
@@ -528,7 +542,7 @@ void DrawRLE8Pic(SDL_Surface* surface, int index, int x, int y, uint32* idxBuffe
 					byte* next = picBuffer + *picBuffer + 1;
 					picBuffer++;
 					for (; picBuffer < next; picBuffer++) {
-						PutPixel(surface, x + px++ - picRect->dx, y + py - picRect->dy, GetPalettePixel(surface->format, g_palette, *picBuffer, 255, highlight));
+						PutPixel(surface, x + px++ - picRect->dx, y + py - picRect->dy, GetPalettePixel(surface->format, *picBuffer, 255, highlight));
 					}
 				}
 			}
@@ -554,7 +568,7 @@ void DrawBigPicOnScreen(int index, byte* buffer)
 			buffer += index * BIG_PIC_SIZE;
 			for (py = 0; py < BIG_PIC_HEIGHT; py++) {
 				for (px = 0; px < BIG_PIC_WIDTH; px++) {
-					PutPixel(surface, px, py, GetPalettePixel(surface->format, g_palette, *(buffer++), 255, 0));
+					PutPixel(surface, px, py, GetPalettePixel(surface->format, *(buffer++), 255, 0));
 				}
 			}
 
@@ -681,57 +695,73 @@ void DrawBFPicInRect(num, px, py, highlight, x, y, w, int h = 0)()
 #endif
 
 //将战场图片画到映像
-
 void DrawPicToBFPic(int index, int x, int y)
 {
 	DrawPic(g_bfSurface, index, x, y, g_bfIdxBuff, g_bfPicBuff, 0);
 }
 
 //显示效果图片
-
 void DrawEffect(int index, int x, int y)
 {
 	DrawPicOnScreen(index, x, y, g_effIdxBuff, g_effectBuff, 0);
 }
 
 //显示人物动作图片
-
 void DrawAction(int index, int x, int y)
 {
 	DrawPicOnScreen(index, x, y, g_actIdxBuff, g_actionBuff, 0);
 }
 
-//显示UTF8中文文字
-void DrawText(char* str, int x, int y, uint32 color)
+//文字
+T_Position DrawText(char* str, int x, int y, uint8 color)
 {
-	SDL_Surface* text = TTF_RenderUTF8_Blended(g_HanFont, str, *(SDL_Color*)&color);
+	T_Position pos;
+
+	SDL_Surface* text = TTF_RenderUTF8_Blended(g_HanFont, str, GetSDLColor(color));
 	if (text) {
+		pos.x = x + text->w;
+		pos.y = y + text->h;
+
 		SDL_BlitSurface(text, NULL, g_screenSurface, &(SDL_Rect){x, y, text->w, text->h});
+
 		SDL_FreeSurface(text);
 	}
+
+	return pos;
 }
 
 #if 0
-//显示英文
-int void DrawEngText(sur: PSDL_Surface; word: PUint16; x_pos = 0;
-		int y_pos = 0; color: Uint32)()
-var
-dest: TSDL_Rect;
+//显示英文数字
+T_Position DrawAlphnumText(char* str, int x, int y, uint8 color)
 {
-	text = TTF_RenderUTF8_Blended(g_EngFont, word, TSDL_Color(Color));
-	dest.x = x_pos;
-	dest.y = y_pos + 4;
-	SDL_BlitSurface(text, NULL, sur, @dest);
-	SDL_FreeSurface(text);
+	T_Position pos;
 
+	SDL_Surface* text = TTF_RenderText_Blended(g_EngFont, str, GetSDLColor(color));
+	if (text) {
+		pos.x = x + text->w;
+		pos.y = y + text->h;
+
+		SDL_BlitSurface(text, NULL, g_screenSurface, &(SDL_Rect){x, y, text->w, text->h});
+
+		SDL_FreeSurface(text);
+	}
+
+	return pos;
 }
 #endif
 
 //显示UTF8中文阴影文字, 即将同样内容显示2次, 间隔1像素
-void DrawShadowText(char* str, int x, int y, uint32 color, uint32 color2)
+T_Position DrawShadowText(char* str, int x, int y, uint8 color)
 {
-	DrawText(str, x + 1, y, color2);
-	DrawText(str, x, y, color);
+	T_Position pos;
+
+	if (color >= 2) {
+		DrawText(str, x + 1, y, color - 2);
+	}
+
+	pos = DrawText(str, x, y, color);
+
+	return pos;
 }
 
 #if 0
@@ -740,22 +770,23 @@ void DrawShadowText(char* str, int x, int y, uint32 color, uint32 color2)
 void DrawEngShadowText(word: PUint16; x_pos = 0;
 		int y_pos = 0; color1, color2: Uint32)()
 {
-	DrawEngText(word, x_pos + 1, y_pos, color2);
-	DrawEngText(word, x_pos, y_pos, color1);
+	DrawAlphnumText(word, x_pos + 1, y_pos, color2);
+	DrawAlphnumText(word, x_pos, y_pos, color1);
 
 }
 #endif
 
 //显示带边框的文字, 仅用于UTF8
-void DrawFrameText(char* str, int x, int y, int padding, uint32 txtColor, uint32 shdColor, uint32 frmColor)
+void DrawFrameText(char* str, int x, int y, int padding, uint8 txtColor, uint8 frmColor)
 {
-	SDL_Surface* shadow = TTF_RenderUTF8_Blended(g_HanFont, str, *(SDL_Color*)&shdColor);
-	SDL_Surface* text = TTF_RenderUTF8_Blended(g_HanFont, str, *(SDL_Color*)&txtColor);
+	uint8 shdColor = txtColor >= 2 ? txtColor -2 : 0xff;
+	SDL_Surface* shadow = TTF_RenderUTF8_Blended(g_HanFont, str, GetSDLColor(shdColor));
+	SDL_Surface* text = TTF_RenderUTF8_Blended(g_HanFont, str, GetSDLColor(txtColor));
 	if (shadow && text) {
 		SDL_BlitSurface(shadow, NULL, g_screenSurface, &(SDL_Rect){x + padding + 1, y + padding, text->w, text->h});
 		SDL_BlitSurface(text, NULL, g_screenSurface, &(SDL_Rect){x + padding, y + padding, text->w, text->h});
 
-		DrawRectangle(x, y, text->w + padding * 2 + 1, text->h + padding * 2, frmColor, COLORA(255, FRAME_ALPHA));
+		DrawFrameRectangle(x, y, text->w + padding * 2 + 1, text->h + padding * 2, frmColor, 255, FRAME_TEXT_ALPHA);
 
 		SDL_FreeSurface(shadow);
 		SDL_FreeSurface(text);
@@ -763,19 +794,24 @@ void DrawFrameText(char* str, int x, int y, int padding, uint32 txtColor, uint32
 }
 
 //显示big5文字
-void DrawBig5Text(char* big5, int x, int y, uint32 color)
+T_Position DrawBig5Text(char* big5, int x, int y, uint8 color)
 {
+	T_Position pos;
+
 	if (big5) {
 		size_t big5Len = strlen(big5);
-		size_t utf8Len = 0;
-		char* utf8 = malloc(big5Len * 4);
-		if (utf8) {
-			iconv(g_Big5ToUTF8, &big5, &big5Len, &utf8, &utf8Len);
-			DrawText(utf8, x, y, color);
+		char utf8[TEXT_UTF8_LEN] = {'\0'};;
+		size_t utf8Len = TEXT_UTF8_LEN;
 
-			free(utf8);
+		char* in = big5;
+		char* out = utf8;
+		if (utf8) {
+			iconv(g_big5ToUtf8, &in, &big5Len, &out, &utf8Len);
+			pos = DrawText(utf8, x, y, color);
 		}
 	}
+
+	return pos;
 }
 
 #if 0
@@ -804,33 +840,41 @@ int len = 0;
 #endif
 
 //显示big5阴影文字
-void DrawBig5ShadowText(char* big5, int x, int y, uint32 color, uint32 color2)
+T_Position DrawBig5ShadowText(char* big5, int x, int y, uint8 color)
 {
+	T_Position pos;
+
 	if (big5) {
 		size_t big5Len = strlen(big5);
-		size_t utf8Len = 0;
-		char* utf8 = malloc(big5Len * 4);
+		char utf8[TEXT_UTF8_LEN] = {'\0'};;
+		size_t utf8Len = TEXT_UTF8_LEN;
+
+		char* in = big5;
+		char* out = utf8;
 		if (utf8) {
-			iconv(g_Big5ToUTF8, &big5, &big5Len, &utf8, &utf8Len);
-			DrawText(utf8, x + 1, y, color2);
-			DrawText(utf8, x, y, color);
+			iconv(g_big5ToUtf8, &in, &big5Len, &out, &utf8Len);
+			if (color >= 2) {
+				DrawText(utf8, x + 1, y, color - 2);
+			}
+			pos = DrawText(utf8, x, y, color);
 
 			free(utf8);
 		}
 	}
+
+	return pos;
 }
 
-//画带边框矩形, (x坐标, y坐标, 宽, 高, 内部颜色, 边框颜色, 透明度)
-void DrawRectangle(int x, int y, int w, int h, uint32 frmColor, uint32 insColor)
+//画带边框矩形(x坐标, y坐标, 宽, 高, 内部颜色, 边框颜色, 透明度)
+void DrawFrameRectangle(int x, int y, int w, int h, uint8 frmColor, uint8 insColor, uint8 alpha)
 {
 	//SDL_LockSurface(g_screenSurface);
 	sint16 vx[RECTANGLE_N] = {x + RECTANGLE_D, x + w - RECTANGLE_D, x + w, x + w, x + w - RECTANGLE_D, x + RECTANGLE_D, x, x};
 	sint16 vy[RECTANGLE_N] = {y, y, y + RECTANGLE_D, y + h - RECTANGLE_D, y + h, y + h, y + h - RECTANGLE_D, y + RECTANGLE_D};
 
-	filledPolygonColor(g_screenSurface, vx, vy, RECTANGLE_N, insColor);
-	polygonColor(g_screenSurface, vx, vy, RECTANGLE_N, frmColor);
+	filledPolygonColor(g_screenSurface, vx, vy, RECTANGLE_N, COLORA(insColor, alpha));
+	polygonColor(g_screenSurface, vx, vy, RECTANGLE_N, COLOR(frmColor));
 	//SDL_UnlockSurface(g_screenSurface);
-
 }
 
 #if 0
@@ -1033,7 +1077,6 @@ void DrawScence()
 }
 
 //画不含主角的场景(与DrawScenceByCenter相同)
-
 void DrawScenceWithoutRole(x, int y = 0)()
 	var
 	int   i1 = 0;
@@ -1061,7 +1104,6 @@ void DrawScenceWithoutRole(x, int y = 0)()
 }
 
 //画不含主角的战场
-
 void DrawBFieldWithoutRole(x, int y = 0)()
 	var
 	int   i1 = 0;
@@ -1132,7 +1174,7 @@ void DrawRoleOnScence(x, int y = 0)()
 
 //画不含边框的矩形, 用于对话和黑屏
 
-int void DrawRectangleWithoutFrame(x = 0;
+int void DrawRectangle(x = 0;
 		int  y = 0;
 		int  w = 0;
 		int h = 0; colorin: Uint32; int alphe = 0)()
@@ -1443,7 +1485,7 @@ void Start()
 	idxBuffer = LoadFile("title.idx", NULL, 0);
 	grpBuffer = LoadFile("title.grp", NULL, 0);
 
-	//drawrectanglewithoutframe(270, 150, 100, 70, 0, 20);
+	//DrawRectangle(270, 150, 100, 70, 0, 20);
 	DrawBigPicOnScreen(0, bigBuffer);
 	DrawPicOnScreen(0, 275, 250, idxBuffer, grpBuffer, 0);
 	DrawPicOnScreen(1, 275, 250, idxBuffer, grpBuffer, 0);
@@ -1476,7 +1518,6 @@ void Start()
 					//str = "請以繁體中文輸入主角之姓名，選定屬性後按Esc              ";
 					//name = InputBox("Enter name", str, "我是主角");
 
-					char str[256] = "資質";
 					do {
 						DrawBigPicOnScreen(0, bigBuffer);
 
@@ -1579,7 +1620,6 @@ SDL_MOUSEMOTION: //鼠标移动
 			break;
 #endif
 		}
-
 	}
 }
 
@@ -1594,15 +1634,23 @@ void InitialRole()
 {
 	T_Role* hero = &g_roleData.roles[0];
 
-	strcpy(hero->name, "江湖小蝦米");//UTF8tobig5(@name[1]);
+	char utf8[] = "江湖小蝦米";
+	int utf8Len = sizeof(utf8);
+	char big5[NAME_LEN] = {'\0'};
+	int big5Len = NAME_LEN;
+
+	char* in = utf8;
+	char* out = big5;
+	iconv(g_utf8ToBig5, &in, &utf8Len, &out, &big5Len);
+	strcpy(hero->name, big5);//UTF8tobig5(@name[1]);
 	hero->listNum = 0;
 	hero->faceIndex = 0;
 	hero->incLife = 0;
-	hero->maxHP = Random(25, 50);
-	hero->currentHP = hero->maxHP;
-	hero->maxMP = Random(25, 50);
-	hero->currentMP = hero->maxMP;
-	hero->mPType = Random(0, 2);
+	hero->maxLife = Random(25, 50);
+	hero->life = hero->maxLife;
+	hero->maxNeili = Random(25, 50);
+	hero->neili = hero->maxNeili;
+	hero->neiliType = Random(0, 2);
 	hero->incLife = Random(1, 10);
 	hero->attack = Random(25, 30);
 	hero->speed = Random(25, 30);
@@ -1640,7 +1688,7 @@ int p = 0;
 	p = 1;
 	x = 30;
 	y = 80;
-	drawrectanglewithoutframe(0, 50, SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2 - 100, 0, 60);
+	DrawRectangle(0, 50, SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2 - 100, 0, 60);
 	for i = 1 to len + 1 do
 	{
 		if (str[i] == widechar(10)) str[i] = " ";
@@ -1658,7 +1706,7 @@ int p = 0;
 			y = 80;
 			redraw;
 			waitanykey;
-			drawrectanglewithoutframe(0, 50, SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2 - 100, 0, 60);
+			DrawRectangle(0, 50, SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2 - 100, 0, 60);
 		}
 	}
 	waitanykey;
@@ -2375,7 +2423,7 @@ void ShowCommonMenu(x, y, w, max, int menu = 0)()
 	int p = 0;
 {
 	redraw;
-	DrawRectangle(x, y, w, max * 22 + 28, 0, COLOR(255), 30);
+	DrawFrameRectangle(x, y, w, max * 22 + 28, 0, COLOR(255), 30);
 	if (length(Menuengstring) > 0) p = 1 else p = 0;
 	for i = 0 to max do
 		if (i == menu)
@@ -2571,7 +2619,7 @@ void ShowCommonScrollMenu(x, y, w, max, maxshow, menu, int menutop = 0)()
 	redraw;
 	//showmessage(inttostr(y));
 	if (max + 1 < maxshow) maxshow = max + 1;
-	DrawRectangle(x, y, w, maxshow * 22 + 6, 0, COLOR(255), 30);
+	DrawFrameRectangle(x, y, w, maxshow * 22 + 6, 0, COLOR(255), 30);
 	if (length(Menuengstring) > 0) p = 1 else p = 0;
 	for i = menutop to menutop + maxshow - 1 do
 		if (i == menu)
@@ -2679,7 +2727,7 @@ void ShowCommonMenu2(x, y, w, int menu = 0)()
 	int p = 0;
 {
 	redraw;
-	DrawRectangle(x, y, w, 28, 0, COLOR(255), 30);
+	DrawFrameRectangle(x, y, w, 28, 0, COLOR(255), 30);
 	//if (length(Menuengstring) > 0) p = 1 else p = 0;
 	for i = 0 to 1 do
 		if (i == menu)
@@ -2838,7 +2886,7 @@ void int ShowMenu(menu = 0)()
 	Word[5] = " 系統";
 	if (inGame == 0) max = 5 else max = 3;
 	ReDraw;
-	DrawRectangle(27, 30, 46, max * 22 + 28, 0, COLOR(255), 30);
+	DrawFrameRectangle(27, 30, 46, max * 22 + 28, 0, COLOR(255), 30);
 	//当前所在位置用白色, 其余用黄色
 	for i = 0 to max do
 		if (i == menu)
@@ -3215,10 +3263,10 @@ p3: array[0..12] of integer;
 
 
 	ReDraw;
-	drawrectangle(110, 30, 386, 25, 0, COLOR(255), 30);
-	drawrectangle(110, 60, 386, 25, 0, COLOR(255), 30);
-	drawrectangle(110, 90, 386, 218, 0, COLOR(255), 30);
-	drawrectangle(110, 313, 386, 25, 0, COLOR(255), 30);
+	DrawFrameRectangle(110, 30, 386, 25, 0, COLOR(255), 30);
+	DrawFrameRectangle(110, 60, 386, 25, 0, COLOR(255), 30);
+	DrawFrameRectangle(110, 90, 386, 218, 0, COLOR(255), 30);
+	DrawFrameRectangle(110, 313, 386, 25, 0, COLOR(255), 30);
 	//i=0;
 	for i1 = 0 to row - 1 do
 		for i2 = 0 to col - 1 do
@@ -3235,8 +3283,8 @@ p3: array[0..12] of integer;
 	if ((RItemlist[listnum].Amount > 0) and (listnum < MAX_ITEM_NUM) and (listnum >= 0))
 	{
 		str = format("%5d", [RItemlist[listnum].Amount]);
-		drawengtext(g_screenSurface, @str[1], 431, 32, COLOR(0x64));
-		drawengtext(g_screenSurface, @str[1], 430, 32, COLOR(0x66));
+		DrawAlphnumText(g_screenSurface, @str[1], 431, 32, COLOR(0x64));
+		DrawAlphnumText(g_screenSurface, @str[1], 430, 32, COLOR(0x66));
 		len = length(pchar(@Ritem[item].Name));
 		drawbig5text(g_screenSurface, @RItem[item].Name, 296 - len * 5, 32, COLOR(0x21));
 		drawbig5text(g_screenSurface, @RItem[item].Name, 295 - len * 5, 32, COLOR(0x23));
@@ -3297,7 +3345,7 @@ p3: array[0..12] of integer;
 		}
 
 		if (len2 + len3 > 0)
-			drawrectangle(110, 344, 386, 20 * ((len2 + 2) / 3 + (len3 + 2) / 3) + 5, 0, COLOR(255), 30);
+			DrawFrameRectangle(110, 344, 386, 20 * ((len2 + 2) / 3 + (len3 + 2) / 3) + 5, 0, COLOR(255), 30);
 
 		i1 = 0;
 		for i = 0 to 22 do
@@ -3560,7 +3608,6 @@ int r = 0;
 }
 
 //查看状态选单
-
 void MenuStatus()
 	var
 	str: widestring;
@@ -3584,239 +3631,236 @@ void MenuStatus()
 
 void ShowStatus(int index)
 {
-		int   i = 0;
-	int  magicnum = 0;
-	int  mlevel = 0;
-	int  needexp = 0;
-	int  x = 0;
-	int y = 0;
-int p[11];
-   int   addatk = 0;
-   int  adddef = 0;
-   int addspeed = 0;
-	  uint32 color1;
-	  uint32 color2;
+	char* text[] = {
+		"等級",
+		"生命",
+		"內力",
+		"體力",
+		"經驗",
+		"升級",
+		"攻擊",
+		"防禦",
+		"輕功",
+		"醫療能力",
+		"用毒能力",
+		"解毒能力",
+		"拳掌功夫",
+		"御劍能力",
+		"耍刀技巧",
+		"特殊兵器",
+		"暗器技巧",
+		"裝備物品",
+		"修煉物品",
+		"所會武功",
+		"受傷",
+		"中毒"
+	};
 
-	  char* text[] = {
-		  "等級",
-		  "生命",
-		  "內力",
-		  "體力",
-		  "經驗",
-		  "升級",
-		  "攻擊",
-		  "防禦",
-		  "輕功",
-		  "醫療能力",
-		  "用毒能力",
-		  "解毒能力",
-		  "拳掌功夫",
-		  "御劍能力",
-		  "耍刀技巧",
-		  "特殊兵器",
-		  "暗器技巧",
-		  "裝備物品",
-		  "修煉物品",
-		  "所會武功",
-		  "受傷",
-		  "中毒"
-	  };
+	T_Role* hero = &g_roleData.roles[0];
 
-	  DrawShadowText("现下我可要走啦，\n 他拦住我，不让我回家。", 80, 65, COLOR(0x23), COLOR(0x21));
+	DrawFrameRectangle(STATUS_FRAME_X, STATUS_FRAME_Y, STATUS_FRAME_W, STATUS_FRAME_H, 255, 0, 0x7f);
 
-	  p[0] = 43; p[1] = 45; p[2] = 44; p[3] = 46; p[4] = 47;
-	  p[5] = 48; p[6] = 50; p[7] = 51; p[8] = 52; p[9] = 53; p[10] = 54;
+	//显示头像姓名
+	DrawFacePic(g_roleData.roles[index].faceIndex, STATUS_TEXT_X(0), STATUS_TEXT_Y(0) + FACE_PIC_H + NAME_OFFSET);
 
-	  x = 40;
-	  y = SCREEN_CENTER_Y - 160;
-	  DrawRectangle(x, y, 560, 315, 0xff00007f, 0x00000000);//COLOR(0), COLORA(255, 0x7F));
-	  //显示头像
-	  DrawFacePic(g_roleData.roles[index].faceIndex, x + 60, y + 80);
-	  //显示姓名
-	  char* name = "姓名";//big5toUTF8(@Rrole[rnum].Name);
-	  DrawShadowText(name, x + 68, y + 85, COLOR(0x66), COLOR(0x63));
-	  //显示所需字符
-	  for (i = 0; i < 5; i++) {
-		  DrawShadowText(text[i], x - 10, y + 110 + 21 * i, COLOR(0x23), COLOR(0x21));
-	  }
+	char* big5 = hero->name;
+	int big5Len = strlen(big5);
+	char utf8[NAME_UTF8_LEN];
+	int utf8Len = NAME_UTF8_LEN;
 
-	  for (; i < 16; i++) {
-		  DrawShadowText(text[i], x + 160, y + 5 + 21 * (i - 6), COLOR(0x66), COLOR(0x63));
-	  }
+	char* in = big5;
+	char* out = utf8;
+	iconv(g_big5ToUtf8, &in, &big5Len, &out, &utf8Len);
 
-	  DrawShadowText(text[19], x + 360, y + 5, COLOR(0x23), COLOR(0x21));
+	DrawShadowText(utf8, STATUS_TEXT_X(0), STATUS_TEXT_Y(0) + FACE_PIC_H, 0x66);
 
-	  /*
-	  addatk = 0;
-	  adddef = 0;
-	  addspeed = 0;
-	  if (rrole[rnum].Equip[0] >= 0)
-	  {
-		  addatk = addatk + ritem[rrole[rnum].Equip[0]].AddAttack;
-		  adddef = adddef + ritem[rrole[rnum].Equip[0]].AddDefence;
-		  addspeed = addspeed + ritem[rrole[rnum].Equip[0]].AddSpeed;
-	  }
+	//显示所需字符
+	char str[20];
+	uint8 color = TEXT_COLOR;
+	T_Position pos;
 
-	  if (rrole[rnum].Equip[1] >= 0)
-	  {
-		  addatk = addatk + ritem[rrole[rnum].Equip[1]].AddAttack;
-		  adddef = adddef + ritem[rrole[rnum].Equip[1]].AddDefence;
-		  addspeed = addspeed + ritem[rrole[rnum].Equip[1]].AddSpeed;
-	  }
+	DrawShadowText("等級", STATUS_TEXT_X(0), STATUS_TEXT_Y(5), TEXT_COLOR);
+	sprintf(str, STATUS_NUM_FORMAT_1, hero->level);
+	DrawShadowText(str, STATUS_TEXT_X(1), STATUS_TEXT_Y(5), TEXT_COLOR);
 
-	  //攻击, 防御, 轻功
-	  //单独处理是因为显示顺序和存储顺序不同
-	  str = format("%4d", [Rrole[rnum].Attack + addatk]);
-	  drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 0, COLOR(0x7), COLOR(0x5));
-	  str = format("%4d", [Rrole[rnum].Defence + adddef]);
-	  drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 1, COLOR(0x7), COLOR(0x5));
-	  str = format("%4d", [Rrole[rnum].Speed + addspeed]);
-	  drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 2, COLOR(0x7), COLOR(0x5));
+	DrawShadowText("生命", STATUS_TEXT_X(0), STATUS_TEXT_Y(6), TEXT_COLOR);
+	if (hero->wound > WOUND_FATAL) {
+		color = TEXT_FATAL_COLOR;
+	} else if (hero->wound > WOUND_SERIOUS) {
+		color = TEXT_SERIOUS_COLOR;
+	} else {
+		color = TEXT_NORMAL_COLOR;
+	}
+	sprintf(str, STATUS_NUM_FORMAT_2, hero->life);
+	pos = DrawShadowText(str, STATUS_TEXT_X(1), STATUS_TEXT_Y(6), color);
+	sprintf(str, STATUS_NUM_FORMAT_3, hero->maxLife);
+	if (hero->poisioning > WOUND_FATAL) {
+		color = TEXT_FATAL_COLOR;
+	} else if (hero->wound > WOUND_SERIOUS) {
+		color = TEXT_SERIOUS_COLOR;
+	} else {
+		color = TEXT_NORMAL_COLOR;
+	}
+	DrawShadowText(str, pos.x, STATUS_TEXT_Y(6), color);
 
-	  //其他属性
-	  str = format("%4d", [Rrole[rnum].Medcine]);
-	  drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 3, COLOR(0x7), COLOR(0x5));
+	DrawShadowText("内力", STATUS_TEXT_X(0), STATUS_TEXT_Y(7), TEXT_COLOR);
+	switch (hero->neiliType) {
+		case EmMPYin:
+			color = TEXT_YIN_COLOR;
+			break;
+		case EmMPYang:
+			color = TEXT_YANG_COLOR;
+			break;
+		case EmMPUnified:
+		default:
+			color = TEXT_NORMAL_COLOR;
+			break;
+	}
+	sprintf(str, STATUS_NUM_FORMAT_2, hero->neili);
+	pos = DrawShadowText(str, STATUS_TEXT_X(1), STATUS_TEXT_Y(7), color);
+	sprintf(str, STATUS_NUM_FORMAT_3, hero->maxNeili);
+	DrawShadowText(str, pos.x, STATUS_TEXT_Y(7), color);
 
-	  str = format("%4d", [Rrole[rnum].UsePoi]);
-	  drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 4, COLOR(0x7), COLOR(0x5));
+	DrawShadowText("體力", STATUS_TEXT_X(0), STATUS_TEXT_Y(8), TEXT_COLOR);
+	sprintf(str, STATUS_NUM_FORMAT_4, hero->phyPower, MAX_PHYSICAL_POWER);
+	DrawShadowText(str, STATUS_TEXT_X(1), STATUS_TEXT_Y(8), TEXT_NORMAL_COLOR);
 
-	  str = format("%4d", [Rrole[rnum].MedPoi]);
-	  drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 5, COLOR(0x7), COLOR(0x5));
+	DrawShadowText("經驗", STATUS_TEXT_X(0), STATUS_TEXT_Y(9), TEXT_COLOR);
+	sprintf(str, STATUS_NUM_FORMAT_1, hero->exp);
+	DrawShadowText(str, STATUS_TEXT_X(1), STATUS_TEXT_Y(9), TEXT_NORMAL_COLOR);
 
-	  str = format("%4d", [Rrole[rnum].Fist]);
-	  drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 6, COLOR(0x7), COLOR(0x5));
+	DrawShadowText("升級", STATUS_TEXT_X(0), STATUS_TEXT_Y(10), TEXT_COLOR);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_levelupList[hero->level - 1]);
+	DrawShadowText(str, STATUS_TEXT_X(1), STATUS_TEXT_Y(10), TEXT_NORMAL_COLOR);
 
-	  str = format("%4d", [Rrole[rnum].Sword]);
-	  drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 7, COLOR(0x7), COLOR(0x5));
+	DrawShadowText("資質", STATUS_TEXT_X(0), STATUS_TEXT_Y(13), TEXT_COLOR);
+	sprintf(str, STATUS_NUM_FORMAT_1, hero->aptitude);
+	DrawShadowText(str, STATUS_TEXT_X(1), STATUS_TEXT_Y(13), TEXT_NORMAL_COLOR);
 
-	  str = format("%4d", [Rrole[rnum].Knife]);
-	  drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 8, COLOR(0x7), COLOR(0x5));
+	DrawShadowText("攻擊", STATUS_TEXT_X(2), STATUS_TEXT_Y(0), TEXT_COLOR);
+	DrawShadowText("防禦", STATUS_TEXT_X(2), STATUS_TEXT_Y(1), TEXT_COLOR);
+	DrawShadowText("輕功", STATUS_TEXT_X(2), STATUS_TEXT_Y(2), TEXT_COLOR);
+	DrawShadowText("醫療能力", STATUS_TEXT_X(2), STATUS_TEXT_Y(3), TEXT_COLOR);
+	DrawShadowText("用毒能力", STATUS_TEXT_X(2), STATUS_TEXT_Y(4), TEXT_COLOR);
+	DrawShadowText("解毒能力", STATUS_TEXT_X(2), STATUS_TEXT_Y(5), TEXT_COLOR);
+	DrawShadowText("拳掌功夫", STATUS_TEXT_X(2), STATUS_TEXT_Y(6), TEXT_COLOR);
+	DrawShadowText("御劍能力", STATUS_TEXT_X(2), STATUS_TEXT_Y(7), TEXT_COLOR);
+	DrawShadowText("耍刀技巧", STATUS_TEXT_X(2), STATUS_TEXT_Y(8), TEXT_COLOR);
+	DrawShadowText("特殊兵器", STATUS_TEXT_X(2), STATUS_TEXT_Y(9), TEXT_COLOR);
+	DrawShadowText("暗器技巧", STATUS_TEXT_X(2), STATUS_TEXT_Y(10), TEXT_COLOR);
+	DrawShadowText("裝備物品", STATUS_TEXT_X(2), STATUS_TEXT_Y(11), TEXT_COLOR);
+	//DrawShadowText(text[19], x + 360, y + 5, 0x23, 0x21);
 
-	  str = format("%4d", [Rrole[rnum].Unusual]);
-	  drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 9, COLOR(0x7), COLOR(0x5));
+	/*
+	   addatk = 0;
+	   adddef = 0;
+	   addspeed = 0;
+	   if (rrole[rnum].Equip[0] >= 0)
+	   {
+	   addatk = addatk + ritem[rrole[rnum].Equip[0]].AddAttack;
+	   adddef = adddef + ritem[rrole[rnum].Equip[0]].AddDefence;
+	   addspeed = addspeed + ritem[rrole[rnum].Equip[0]].AddSpeed;
+	   }
 
-	  str = format("%4d", [Rrole[rnum].HidWeapon]);
-	  drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 10, COLOR(0x7), COLOR(0x5));
+	   if (rrole[rnum].Equip[1] >= 0)
+	   {
+	   addatk = addatk + ritem[rrole[rnum].Equip[1]].AddAttack;
+	   adddef = adddef + ritem[rrole[rnum].Equip[1]].AddDefence;
+	   addspeed = addspeed + ritem[rrole[rnum].Equip[1]].AddSpeed;
+	   }
 
-	  //武功
-	  for i = 0 to 9 do
-	  {
-		  magicnum = Rrole[rnum].magic[i];
-		  if (magicnum > 0)
-		  {
-			  drawbig5shadowtext(@Rmagic[magicnum].Name, x + 360, y + 26 + 21 * i, COLOR(0x7), COLOR(0x5));
-			  str = format("%3d", [Rrole[rnum].MagLevel[i] / 100 + 1]);
-			  drawengshadowtext(@str[1], x + 520, y + 26 + 21 * i, COLOR(0x66), COLOR(0x64));
-		  }
-	  }
-	  str = format("%4d", [Rrole[rnum].Level]);
-	  drawengshadowtext(@str[1], x + 110, y + 110, COLOR(0x7), COLOR(0x5));
-	  //生命值, 在受伤和中毒值不同时使用不同颜色
-	  switch (RRole[rnum].Hurt) {
-		  34..66:
-		  {
-			  color1 = COLOR(0xE);
-			  color2 = COLOR(0x10);
-		  }
-		  67..1000:
-		  {
-			  color1 = COLOR(0x14);
-			  color2 = COLOR(0x16);
-		  }
-		  else
-		  {
-			  color1 = COLOR(0x7);
-			  color2 = COLOR(0x5);
-		  }
-	  }
-	  str = format("%4d", [RRole[rnum].CurrentHP]);
-	  drawengshadowtext(@str[1], x + 60, y + 131, color1, color2);
+	//攻击, 防御, 轻功
+	//单独处理是因为显示顺序和存储顺序不同
+	str = format("%4d", [Rrole[rnum].Attack + addatk]);
+	drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 0, COLOR(0x7), COLOR(0x5));
+	str = format("%4d", [Rrole[rnum].Defence + adddef]);
+	drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 1, COLOR(0x7), COLOR(0x5));
+	str = format("%4d", [Rrole[rnum].Speed + addspeed]);
+	drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 2, COLOR(0x7), COLOR(0x5));
 
-	  str = "/";
-	  drawengshadowtext(@str[1], x + 100, y + 131, COLOR(0x66), COLOR(0x63));
+	//其他属性
+	str = format("%4d", [Rrole[rnum].Medcine]);
+	drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 3, COLOR(0x7), COLOR(0x5));
 
-	  switch (RRole[rnum].Poision) {
-		  34..66:
-		  {
-			  color1 = COLOR(0x30);
-			  color2 = COLOR(0x32);
-		  }
-		  67..1000:
-		  {
-			  color1 = COLOR(0x35);
-			  color2 = COLOR(0x37);
-		  }
-		  else
-		  {
-			  color1 = COLOR(0x23);
-			  color2 = COLOR(0x21);
-		  }
-	  }
-	  str = format("%4d", [RRole[rnum].MaxHP]);
-	  drawengshadowtext(@str[1], x + 110, y + 131, color1, color2);
-	  //内力, 依据内力性质使用颜色
-	  if (rrole[rnum].MPType == 0) {
-		  color1 = COLOR(0x50);
-		  color2 = COLOR(0x4E);
-	  } else if (rrole[rnum].MPType == 1) {
-		  color1 = COLOR(0x7);
-		  color2 = COLOR(0x5);
-	  } else {
-		  color1 = COLOR(0x66);
-		  color2 = COLOR(0x63);
-	  }
-	  str = format("%4d/%4d", [RRole[rnum].CurrentMP, RRole[rnum].MaxMP]);
-	  drawengshadowtext(@str[1], x + 60, y + 152, color1, color2);
-	  //体力
-	  str = format("%4d/%4d", [rrole[rnum].PhyPower, MAX_PHYSICAL_POWER]);
-	  drawengshadowtext(@str[1], x + 60, y + 173, COLOR(0x7), COLOR(0x5));
-	  //经验
-	  str = format("%5d", [uint16(Rrole[rnum].Exp)]);
-	  drawengshadowtext(@str[1], x + 100, y + 194, COLOR(0x7), COLOR(0x5));
-	  str = format("%5d", [uint16(g_levelupList[Rrole[rnum].Level - 1])]);
-	  drawengshadowtext(@str[1], x + 100, y + 215, COLOR(0x7), COLOR(0x5));
+	str = format("%4d", [Rrole[rnum].UsePoi]);
+	drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 4, COLOR(0x7), COLOR(0x5));
 
-	  //str=format("%5d", [Rrole[rnum,21]]);
-	  //drawengshadowtext(@str[1],150,295,COLOR(0x7),COLOR(0x5));
+	str = format("%4d", [Rrole[rnum].MedPoi]);
+	drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 5, COLOR(0x7), COLOR(0x5));
 
-	  //DrawShadowText(@strs[20, 1], 30, 341, COLOR(0x23), COLOR(0x21));
-	  //DrawShadowText(@strs[21, 1], 30, 362, COLOR(0x23), COLOR(0x21));
+	str = format("%4d", [Rrole[rnum].Fist]);
+	drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 6, COLOR(0x7), COLOR(0x5));
 
-	  //drawrectanglewithoutframe(100,351,Rrole[rnum,19],10,COLOR(0x16),50);
-	  //中毒, 受伤
-	  //str = format("%4d", [RRole[rnum].Hurt]);
-	  //drawengshadowtext(@str[1], 150, 341, COLOR(0x14), COLOR(0x16));
-	  //str = format("%4d", [RRole[rnum].Poision]);
-	  //drawengshadowtext(@str[1], 150, 362, COLOR(0x35), COLOR(0x37));
+	str = format("%4d", [Rrole[rnum].Sword]);
+	drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 7, COLOR(0x7), COLOR(0x5));
 
-	  //装备, 秘笈
-	  DrawShadowText(@strs[17, 1], x + 160, y + 240, COLOR(0x23), COLOR(0x21));
-	  DrawShadowText(@strs[18, 1], x + 360, y + 240, COLOR(0x23), COLOR(0x21));
-	  if (Rrole[rnum].Equip[0] >= 0)
-		  drawbig5shadowtext(@Ritem[Rrole[rnum].Equip[0]].Name, x + 170, y + 261, COLOR(0x7), COLOR(0x5));
-	  if (Rrole[rnum].Equip[1] >= 0)
-		  drawbig5shadowtext(@Ritem[Rrole[rnum].Equip[1]].Name, x + 170, y + 282, COLOR(0x7), COLOR(0x5));
+	str = format("%4d", [Rrole[rnum].Knife]);
+	drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 8, COLOR(0x7), COLOR(0x5));
 
-	  //计算秘笈需要经验
-	  if (Rrole[rnum].PracticeBook >= 0)
-	  {
-		  mlevel = 1;
-		  magicnum = Ritem[Rrole[rnum].PracticeBook].Magic;
-		  if (magicnum > 0)
-			  for i = 0 to 9 do
-				  if (Rrole[rnum].Magic[i] == magicnum)
-				  {
-					  mlevel = Rrole[rnum].MagLevel[i] / 100 + 1;
-					  break;
-				  }
-		  needexp = mlevel * Ritem[Rrole[rnum].PracticeBook].NeedExp * (7 - Rrole[rnum].Aptitude / 15);
-		  drawbig5shadowtext(@Ritem[Rrole[rnum].PracticeBook].Name, x + 370, y + 261, COLOR(0x7), COLOR(0x5));
-		  str = format("%5d/%5d", [uint16(Rrole[rnum].ExpForBook), needexp]);
-		  if (mlevel == 10) str = format("%5d/=", [uint16(Rrole[rnum].ExpForBook)]);
-		  drawengshadowtext(@str[1], x + 400, y + 282, COLOR(0x66), COLOR(0x63));
-	  }*/
+	str = format("%4d", [Rrole[rnum].Unusual]);
+	drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 9, COLOR(0x7), COLOR(0x5));
 
-	  UpdateScreen();
+	str = format("%4d", [Rrole[rnum].HidWeapon]);
+	drawengshadowtext(@str[1], x + 300, y + 5 + 21 * 10, COLOR(0x7), COLOR(0x5));
+
+	//武功
+	for i = 0 to 9 do
+	{
+	magicnum = Rrole[rnum].magic[i];
+	if (magicnum > 0)
+	{
+	drawbig5shadowtext(@Rmagic[magicnum].Name, x + 360, y + 26 + 21 * i, COLOR(0x7), COLOR(0x5));
+	str = format("%3d", [Rrole[rnum].MagLevel[i] / 100 + 1]);
+	drawengshadowtext(@str[1], x + 520, y + 26 + 21 * i, COLOR(0x66), COLOR(0x64));
+	}
+	}
+	str = format("%4d", [Rrole[rnum].Level]);
+	drawengshadowtext(@str[1], x + 110, y + 110, COLOR(0x7), COLOR(0x5));
+
+str = "/";
+drawengshadowtext(@str[1], x + 100, y + 131, COLOR(0x66), COLOR(0x63));
+
+//str=format("%5d", [Rrole[rnum,21]]);
+//drawengshadowtext(@str[1],150,295,COLOR(0x7),COLOR(0x5));
+
+//DrawShadowText(@strs[20, 1], 30, 341, COLOR(0x23), COLOR(0x21));
+//DrawShadowText(@strs[21, 1], 30, 362, COLOR(0x23), COLOR(0x21));
+
+//DrawRectangle(100,351,Rrole[rnum,19],10,COLOR(0x16),50);
+//中毒, 受伤
+//str = format("%4d", [RRole[rnum].Hurt]);
+//drawengshadowtext(@str[1], 150, 341, COLOR(0x14), COLOR(0x16));
+//str = format("%4d", [RRole[rnum].Poision]);
+//drawengshadowtext(@str[1], 150, 362, COLOR(0x35), COLOR(0x37));
+
+//装备, 秘笈
+DrawShadowText(@strs[17, 1], x + 160, y + 240, COLOR(0x23), COLOR(0x21));
+DrawShadowText(@strs[18, 1], x + 360, y + 240, COLOR(0x23), COLOR(0x21));
+if (Rrole[rnum].Equip[0] >= 0)
+	drawbig5shadowtext(@Ritem[Rrole[rnum].Equip[0]].Name, x + 170, y + 261, COLOR(0x7), COLOR(0x5));
+if (Rrole[rnum].Equip[1] >= 0)
+	drawbig5shadowtext(@Ritem[Rrole[rnum].Equip[1]].Name, x + 170, y + 282, COLOR(0x7), COLOR(0x5));
+
+	//计算秘笈需要经验
+if (Rrole[rnum].PracticeBook >= 0)
+{
+	mlevel = 1;
+	magicnum = Ritem[Rrole[rnum].PracticeBook].Magic;
+	if (magicnum > 0)
+		for i = 0 to 9 do
+			if (Rrole[rnum].Magic[i] == magicnum)
+			{
+				mlevel = Rrole[rnum].MagLevel[i] / 100 + 1;
+				break;
+			}
+	needexp = mlevel * Ritem[Rrole[rnum].PracticeBook].NeedExp * (7 - Rrole[rnum].Aptitude / 15);
+	drawbig5shadowtext(@Ritem[Rrole[rnum].PracticeBook].Name, x + 370, y + 261, COLOR(0x7), COLOR(0x5));
+	str = format("%5d/%5d", [uint16(Rrole[rnum].ExpForBook), needexp]);
+	if (mlevel == 10) str = format("%5d/=", [uint16(Rrole[rnum].ExpForBook)]);
+	drawengshadowtext(@str[1], x + 400, y + 282, COLOR(0x66), COLOR(0x63));
+}*/
+
+UpdateScreen();
 }
 
 #if 0
@@ -3971,7 +4015,7 @@ void int ShowMenuSystem(menu = 0)()
 	Word[3] = " 離開";
 	if (g_fullScreen == 1) Word[2] = " 窗口";
 	ReDraw;
-	DrawRectangle(80, 30, 46, 92, 0, COLOR(255), 30);
+	DrawFrameRectangle(80, 30, 46, 92, 0, COLOR(255), 30);
 	for i = 0 to 3 do
 		if (i == menu)
 		{
@@ -4085,7 +4129,7 @@ void EffectMedcine(role1, int role2 = 0)()
 	if (RRole[role2].Hurt < 0) RRole[role2].Hurt = 0;
 	if (addlife > RRole[role2].MaxHP - Rrole[role2].CurrentHP) addlife = RRole[role2].MaxHP - Rrole[role2].CurrentHP;
 	Rrole[role2].CurrentHP = Rrole[role2].CurrentHP + addlife;
-	DrawRectangle(115, 98, 145, 51, 0, COLOR(255), 30);
+	DrawFrameRectangle(115, 98, 145, 51, 0, COLOR(255), 30);
 	word = " 增加生命";
 	drawshadowtext(@word[1], 100, 125, COLOR(0x7), COLOR(0x5));
 	drawbig5shadowtext(@rrole[role2].Name, 100, 100, COLOR(0x23), COLOR(0x21));
@@ -4107,7 +4151,7 @@ void EffectMedPoision(role1, int role2 = 0)()
 	minuspoi = Rrole[role1].MedPoi;
 	if (minuspoi > Rrole[role2].Poision) minuspoi = Rrole[role2].Poision;
 	Rrole[role2].Poision = Rrole[role2].Poision - minuspoi;
-	DrawRectangle(115, 98, 145, 51, 0, COLOR(255), 30);
+	DrawFrameRectangle(115, 98, 145, 51, 0, COLOR(255), 30);
 	word = " 中毒減少";
 	drawshadowtext(@word[1], 100, 125, COLOR(0x7), COLOR(0x5));
 	drawbig5shadowtext(@rrole[role2].Name, 100, 100, COLOR(0x23), COLOR(0x21));
@@ -4194,7 +4238,7 @@ str: widestring;
 	if ((addvalue[21] == 1) and (rrole[rnum].data[58] <> 1)) p = p + 1;
 
 	ShowSimpleStatus(rnum, 350, 50);
-	DrawRectangle(100, 70, 200, 25, 0, COLOR(255), 25);
+	DrawFrameRectangle(100, 70, 200, 25, 0, COLOR(255), 25);
 	str = " 服用";
 	if (Ritem[inum].ItemType == 2) str = " 練成";
 	Drawshadowtext(@str[1], 83, 72, COLOR(0x23), COLOR(0x21));
@@ -4204,11 +4248,11 @@ str: widestring;
 	if (p < 11)
 	{
 		l = p;
-		Drawrectangle(100, 100, 200, 22 * l + 25, 0, COLOR(0xFF), 25);
+		DrawFrameRectangle(100, 100, 200, 22 * l + 25, 0, COLOR(0xFF), 25);
 	} else
 	{
 		l = p / 2 + 1;
-		Drawrectangle(100, 100, 400, 22 * l + 25, 0, COLOR(0xFF), 25);
+		DrawFrameRectangle(100, 100, 400, 22 * l + 25, 0, COLOR(0xFF), 25);
 	}
 	drawbig5shadowtext(@rrole[rnum].data[4], 83, 102, COLOR(0x23), COLOR(0x21));
 	str = " 未增加屬性';
@@ -4748,7 +4792,7 @@ name: WideString;
 	fileread(grp, talkarray[0], len);
 	fileclose(idx);
 	fileclose(grp);
-	drawrectanglewithoutframe(0, diagy - 10, 640, 120, 0, 40);
+	DrawRectangle(0, diagy - 10, 640, 120, 0, 40);
 	if (headx > 0) DrawFacePic(headnum, headx, heady);
 	//if (headnum <= MAX_HEAD_NUM)
 	//{
@@ -4775,7 +4819,7 @@ name: WideString;
 				sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 				WaitAnyKey;
 				Redraw;
-				drawrectanglewithoutframe(0, diagy - 10, 640, 120, 0, 40);
+				DrawRectangle(0, diagy - 10, 640, 120, 0, 40);
 				if (headx > 0) DrawFacePic(headnum, headx, heady);
 				l = 0;
 			}
@@ -4818,7 +4862,7 @@ word: widestring;
 	x = SCREEN_CENTER_X;
 	if (inGame == 2) x = 190;
 
-	DrawRectangle(x - 75, 98, 145, 76, 0, COLOR(255), 30);
+	DrawFrameRectangle(x - 75, 98, 145, 76, 0, COLOR(255), 30);
 	if (amount >= 0)
 		word = " 得到物品"
 	else
@@ -5049,7 +5093,7 @@ void instruct_13()
 	{
 		//Sdl_Delay(5);
 		Redraw;
-		DrawRectangleWithoutFrame(0, 0, g_screenSurface.w, g_screenSurface.h, 0, 100 - i * 20);
+		DrawRectangle(0, 0, g_screenSurface.w, g_screenSurface.h, 0, 100 - i * 20);
 		sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 	}
 }
@@ -5064,7 +5108,7 @@ void instruct_14()
 	{
 		//Redraw;
 		Sdl_Delay(10);
-		DrawRectangleWithoutFrame(0, 0, g_screenSurface.w, g_screenSurface.h, 0, i * 10);
+		DrawRectangle(0, 0, g_screenSurface.w, g_screenSurface.h, 0, i * 10);
 		sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 	}
 }
@@ -5408,7 +5452,7 @@ word: widestring;
 	//if (i == 10) rrole[rnum].data[i+63] = magicnum;
 	if (dismode == 0)
 	{
-		DrawRectangle(SCREEN_CENTER_X - 75, 98, 145, 76, 0, COLOR(255), 30);
+		DrawFrameRectangle(SCREEN_CENTER_X - 75, 98, 145, 76, 0, COLOR(255), 30);
 		word = " 學會';
 		drawshadowtext(@word[1], SCREEN_CENTER_X - 90, 125, COLOR(0x7), COLOR(0x5));
 		drawbig5shadowtext(@rrole[rnum].Name, SCREEN_CENTER_X - 90, 100, COLOR(0x23), COLOR(0x21));
@@ -5433,7 +5477,7 @@ void instruct_34(rnum, int iq = 0)()
 	}
 	if (iq > 0)
 	{
-		DrawRectangle(SCREEN_CENTER_X - 75, 98, 145, 51, 0, COLOR(255), 30);
+		DrawFrameRectangle(SCREEN_CENTER_X - 75, 98, 145, 51, 0, COLOR(255), 30);
 		word = " 資質增加";
 		drawshadowtext(@word[1], SCREEN_CENTER_X - 90, 125, COLOR(0x7), COLOR(0x5));
 		drawbig5shadowtext(@rrole[rnum].Name, SCREEN_CENTER_X - 90, 100, COLOR(0x23), COLOR(0x21));
@@ -5606,7 +5650,7 @@ void instruct_45(rnum, int speed = 0)()
 	word: widestring;
 {
 	RRole[rnum].Speed = RRole[rnum].Speed + speed;
-	DrawRectangle(SCREEN_CENTER_X - 75, 98, 145, 51, 0, COLOR(255), 30);
+	DrawFrameRectangle(SCREEN_CENTER_X - 75, 98, 145, 51, 0, COLOR(255), 30);
 	word = " 輕功增加";
 	drawshadowtext(@word[1], SCREEN_CENTER_X - 90, 125, COLOR(0x7), COLOR(0x5));
 	drawbig5shadowtext(@rrole[rnum].Name, SCREEN_CENTER_X - 90, 100, COLOR(0x23), COLOR(0x21));
@@ -5623,7 +5667,7 @@ void instruct_46(rnum, int mp = 0)()
 {
 	RRole[rnum].MaxMP = RRole[rnum].MaxMP + mp;
 	RRole[rnum].CurrentMP = RRole[rnum].MaxMP;
-	DrawRectangle(SCREEN_CENTER_X - 75, 98, 145, 51, 0, COLOR(255), 30);
+	DrawFrameRectangle(SCREEN_CENTER_X - 75, 98, 145, 51, 0, COLOR(255), 30);
 	word = " 內力增加';
 	drawshadowtext(@word[1], SCREEN_CENTER_X - 90, 125, COLOR(0x7), COLOR(0x5));
 	drawbig5shadowtext(@rrole[rnum].Name, SCREEN_CENTER_X - 90, 100, COLOR(0x23), COLOR(0x21));
@@ -5639,7 +5683,7 @@ void instruct_47(rnum, int attack = 0)()
 	word: widestring;
 {
 	RRole[rnum].Attack = RRole[rnum].Attack + attack;
-	DrawRectangle(SCREEN_CENTER_X - 75, 98, 145, 51, 0, COLOR(255), 30);
+	DrawFrameRectangle(SCREEN_CENTER_X - 75, 98, 145, 51, 0, COLOR(255), 30);
 	word = " 武力增加";
 	drawshadowtext(@word[1], SCREEN_CENTER_X - 90, 125, COLOR(0x7), COLOR(0x5));
 	drawbig5shadowtext(@rrole[rnum].Name, SCREEN_CENTER_X - 90, 100, COLOR(0x23), COLOR(0x21));
@@ -5656,7 +5700,7 @@ void instruct_48(rnum, int hp = 0)()
 {
 	RRole[rnum].MaxHP = RRole[rnum].MaxHP + hp;
 	RRole[rnum].CurrentHP = RRole[rnum].MaxHP;
-	DrawRectangle(SCREEN_CENTER_X - 75, 98, 145, 51, 0, COLOR(255), 30);
+	DrawFrameRectangle(SCREEN_CENTER_X - 75, 98, 145, 51, 0, COLOR(255), 30);
 	word = " 生命增加";
 	drawshadowtext(@word[1], SCREEN_CENTER_X - 90, 125, COLOR(0x7), COLOR(0x5));
 	drawbig5shadowtext(@rrole[rnum].Name, SCREEN_CENTER_X - 90, 100, COLOR(0x23), COLOR(0x21));
@@ -5704,7 +5748,7 @@ void instruct_52()
 	var
 	word: widestring;
 {
-	DrawRectangle(SCREEN_CENTER_X - 110, 98, 220, 26, 0, COLOR(255), 30);
+	DrawFrameRectangle(SCREEN_CENTER_X - 110, 98, 220, 26, 0, COLOR(255), 30);
 	word = " 你的品德指數為：';
 	drawshadowtext(@word[1], SCREEN_CENTER_X - 125, 100, COLOR(0x7), COLOR(0x5));
 	word = format("%3d", [rrole[0].Ethics]);
@@ -5718,7 +5762,7 @@ void instruct_53()
 	var
 	word: widestring;
 {
-	DrawRectangle(SCREEN_CENTER_X - 110, 98, 220, 26, 0, COLOR(255), 30);
+	DrawFrameRectangle(SCREEN_CENTER_X - 110, 98, 220, 26, 0, COLOR(255), 30);
 	word = " 你的聲望指數為：';
 	drawshadowtext(@word[1], SCREEN_CENTER_X - 125, 100, COLOR(0x7), COLOR(0x5));
 	word = format("%3d", [rrole[0].Repute]);
@@ -5871,7 +5915,7 @@ int p = 0;
 	p = 1;
 	x = 30;
 	y = 80;
-	drawrectanglewithoutframe(0, 50, SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2 - 100, 0, 60);
+	DrawRectangle(0, 50, SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2 - 100, 0, 60);
 	for i = 1 to len + 1 do
 	{
 		if (str[i] == widechar(10)) str[i] = " ";
@@ -5889,7 +5933,7 @@ int p = 0;
 			y = 80;
 			redraw;
 			waitanykey;
-			drawrectanglewithoutframe(0, 50, SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2 - 100, 0, 60);
+			DrawRectangle(0, 50, SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2 - 100, 0, 60);
 		}
 	}
 	waitanykey;
@@ -6360,7 +6404,7 @@ word: widestring;
 			e3 = e_getvalue(1, e1, e3);
 			e4 = e_getvalue(2, e1, e4);
 			e5 = e_getvalue(3, e1, e5);
-			Drawrectangle(e2, e3, e4, e5, 0, COLOR(0xFF), 40);
+			DrawFrameRectangle(e2, e3, e4, e5, 0, COLOR(0xFF), 40);
 			//sdl_updaterect(g_screenSurface,e1,e2,e3+1,e4+1);
 		}
 35: //Pause and wait a key.
@@ -6403,7 +6447,7 @@ sdlk_down: x50[e1] = 152;
 			p = p - 1;
 			if (i1 == 0) i1 = 1;
 			if (byte(p^) == 0x2A) i1 = i1 - 1;
-			DrawRectangle(e3, e4, i2 * 10 + 25, i1 * 22 + 5, 0, COLOR(255), 30);
+			DrawFrameRectangle(e3, e4, i2 * 10 + 25, i1 * 22 + 5, 0, COLOR(255), 30);
 			p = @x50[e2];
 			p1 = p;
 			i = 0;
@@ -6736,7 +6780,7 @@ void ShowMultiMenu(max, menu, int status = 0)()
 	str = " 選擇參與戰鬥之人物";
 	str1 = " 參戰';
 	//Drawtextwithrect(@str[1],x,y-35,200,COLOR(0x23),COLOR(0x21));
-	DrawRectangle(x + 30, y, 150, max * 22 + 28, 0, COLOR(255), 30);
+	DrawFrameRectangle(x + 30, y, 150, max * 22 + 28, 0, COLOR(255), 30);
 	for i = 0 to max do
 		if (i == menu)
 		{
@@ -7247,7 +7291,7 @@ word: array[0..9] of widestring;
 	word[8] = " 休息";
 	word[9] = " 自動';
 	Redraw;
-	DrawRectangle(100, 50, 47, max * 22 + 28, 0, COLOR(255), 30);
+	DrawFrameRectangle(100, 50, 47, max * 22 + 28, 0, COLOR(255), 30);
 	p = 0;
 	for i = 0 to 9 do
 	{
@@ -7781,7 +7825,7 @@ void ShowMagicMenu(menustatus, menu, int max = 0)()
 	int p = 0;
 {
 	redraw;
-	DrawRectangle(100, 50, 167, max * 22 + 28, 0, COLOR(255), 30);
+	DrawFrameRectangle(100, 50, 167, max * 22 + 28, 0, COLOR(255), 30);
 	p = 0;
 	for i = 0 to 9 do
 	{
@@ -8179,7 +8223,7 @@ color1, color2: uint32;
 	strs[2] = " 內力';
 	strs[3] = " 體力";
 
-	DrawRectangle(x, y, 145, 173, 0, COLOR(255), 30);
+	DrawFrameRectangle(x, y, 145, 173, 0, COLOR(255), 30);
 	DrawFacePic(Rrole[rnum].HeadNum, x + 50, y + 62);
 	str = big5toUTF8(@rrole[rnum].Name);
 	drawshadowtext(@str[1], x + 60 - length(pchar(@rrole[rnum].Name)) * 5, y + 65, COLOR(0x66), COLOR(0x63));
@@ -8339,7 +8383,7 @@ str: widestring;
 			Rrole[rnum].ExpForBook = Rrole[rnum].ExpForBook + basicvalue / 5 * 4;
 			Rrole[rnum].ExpForItem = Rrole[rnum].ExpForItem + basicvalue / 5 * 3;
 			ShowSimpleStatus(rnum, 100, 50);
-			DrawRectangle(100, 235, 145, 25, 0, COLOR(255), 25);
+			DrawFrameRectangle(100, 235, 145, 25, 0, COLOR(255), 25);
 			str = " 得經驗";
 			Drawshadowtext(@str[1], 83, 237, COLOR(0x23), COLOR(0x21));
 			str = format("%5d", [Brole[i].ExpGot + basicvalue]);
@@ -8497,7 +8541,7 @@ str: widestring;
 					if (needitemamount <= itemamount)
 					{
 						ShowSimpleStatus(rnum, 350, 50);
-						DrawRectangle(115, 63, 145, 25, 0, COLOR(255), 25);
+						DrawFrameRectangle(115, 63, 145, 25, 0, COLOR(255), 25);
 						str = " 製藥成功";
 						Drawshadowtext(@str[1], 127, 65, COLOR(0x23), COLOR(0x21));
 

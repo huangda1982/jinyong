@@ -30,7 +30,8 @@
 * Graphic                                                                      *
 *******************************************************************************/
 
-#define HAN_FONT	"font/kaiu.ttf"
+//#define HAN_FONT	"font/kaiu.ttf"
+#define HAN_FONT	"font/ukai.ttf"
 #define ENG_FONT	"font/consola.ttf"
 
 #define SCREEN_WIDTH	640
@@ -52,9 +53,46 @@
 #define RECTANGLE_D	5
 #define RECTANGLE_N	8
 
+#define STATUS_FRAME_X	40
+#define STATUS_FRAME_Y	40
+#define STATUS_FRAME_W	560
+#define STATUS_FRAME_H	400
+
+#define STATUS_TEXT_TOP_X	80
+#define STATUS_TEXT_LEFT_Y	65
+
+#define STATUS_TEXT_W	80
+#define STATUS_TEXT_H	25
+
+#define STATUS_TEXT_X(x)	(STATUS_TEXT_TOP_X + STATUS_TEXT_W * (x))
+#define STATUS_TEXT_Y(y)	(STATUS_TEXT_LEFT_Y + STATUS_TEXT_H * (y))
+
+#define STATUS_NUM_FORMAT_1	"%7d"
+#define STATUS_NUM_FORMAT_2	"%3d"
+#define STATUS_NUM_FORMAT_3	"/%3d"
+#define STATUS_NUM_FORMAT_4	"%3d/%3d"
+
+#define FACE_PIC_W	56
+#define FACE_PIC_H	58
+#define NAME_OFFSET	10
+
+#define TEXT_COLOR			0x23
+#define TEXT_NORMAL_COLOR	0x07
+#define TEXT_FATAL_COLOR	0x16
+#define TEXT_SERIOUS_COLOR	0x10
+#define TEXT_YIN_COLOR		0x50
+#define TEXT_YANG_COLOR		TEXT_NORMAL_COLOR
+#define TEXT_UNIFIED_COLOR	0x66
+
 /*******************************************************************************
 * In Game                                                                      *
 *******************************************************************************/
+
+#define TEXT_BIG5_LEN	1024
+#define TEXT_UTF8_LEN	(TEXT_BIG5_LEN * 4)
+
+#define NAME_LEN		20
+#define NAME_UTF8_LEN	(NAME_LEN * 4)
 
 #define ITEM_BEGIN_PIC			3501	//物品起始图片
 #define BEGIN_EVENT				691		//初始事件
@@ -93,6 +131,9 @@
 #define MAX_HEAD_NUM			189		//有专有头像的最大人物编号, 仅用于对话指令
 #define BEGIN_WALKPIC			2500	//起始的行走贴图
 
-#define FRAME_ALPHA				30
+#define FRAME_TEXT_ALPHA		30
 
 #define MAX_PRO_LIST_OFFSET		43
+
+#define WOUND_SERIOUS	33
+#define WOUND_FATAL		66

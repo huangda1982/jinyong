@@ -31,38 +31,43 @@ void PlayXMI(int index, int times);
 void StopXMI();
 void PlayWAV(int index, int times);
 void PlayWAVFile(char* filename, int times);
+
 void LoadGame(int slot);
 void SaveGame(int slot);
+
 int WaitAnyKey();
-#define COLOR(c) GetPalettePixel(g_screenSurface->format, g_palette, (c), 255, 0)
-#define COLORA(c, a) GetPalettePixel(g_screenSurface->format, g_palette, (c), (a), 0)
-#define COLORH(c, h) GetPalettePixel(g_screenSurface->format, g_palette, (c), 255, (h))
-uint32 GetPalettePixel(SDL_PixelFormat* format, T_RGB* palette, uint8 color, uint8 alpha, int highlight);
+bool PicInArea(int x, int y, T_PicRect picRect, T_Rect destRect);
+T_Position GetPositionOnScreen(int x, int y, int cx, int cy);
+
+uint32 GetRGBAPixel(uint8 color, uint8 alpha, int highlight);
+uint32 GetPalettePixel(SDL_PixelFormat* format, uint8 color, uint8 alpha, int highlight);
+#define COLOR(c)		GetRGBAPixel((c), 255, 0)
+#define COLORA(c, a)	GetRGBAPixel((c), (a), 0)
+#define COLORH(c, h)	GetRGBAPixel((c), 255, (h))
 void PutPixel(SDL_Surface* surface, int x, int y, uint32 pixel);
-void DrawRectangle(int x, int y, int w, int h, uint32 frmColor, uint32 insColor);
+void DrawFrameRectangle(int x, int y, int w, int h, uint8 frmColor, uint8 insColor, uint8 alpha);
 void DrawRLE8Pic(SDL_Surface* surface, int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight);
-void DrawBigPicOnScreen(int index, byte* buffer);
+
 void DrawPic(SDL_Surface* destSurface, int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight);
 void DrawPicOnScreen(int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight);
-T_Position GetPositionOnScreen(int x, int y, int cx, int cy);
+void DrawBigPicOnScreen(int index, byte* buffer);
 void DrawTitlePic(int index, int x, int y);
 void DrawScencePic(int index, int x, int y);
-void InitialSPic(int index, int x, int y);
-bool PicInArea(int x, int y, T_PicRect picRect, T_Rect destRect);
 void DrawMapPic(int index, int x, int y);
 void DrawFacePic(int index, int x, int y);
 void DrawBFPic(int index, int x, int y, int highlight);
 void DrawPicToBFPic(int index, int x, int y);
 void DrawEffect(int index, int x, int y);
 void DrawAction(int index, int x, int y);
-void DrawText(char* str, int x, int y, uint32 color);
-void DrawShadowText(char* str, int x, int y, uint32 color, uint32 color2);
-void DrawFrameText(char* str, int x, int y, int padding, uint32 txtColor, uint32 shdColor, uint32 frmColor);
-void DrawBig5Text(char* big5, int x, int y, uint32 color);
-void UTF8ToBig5(char* utf8, char* big5);
-void Big5ToUTF8(char* big5, char* utf8);
-void DrawBig5ShadowText(char* big5, int x, int y, uint32 color, uint32 color2);
+
+void DrawFrameText(char* str, int x, int y, int padding, uint8 txtColor, uint8 frmColor);
+T_Position DrawText(char* str, int x, int y, uint8 color);
+T_Position DrawShadowText(char* str, int x, int y, uint8 color);
+T_Position DrawBig5Text(char* big5, int x, int y, uint8 color);
+T_Position DrawBig5ShadowText(char* big5, int x, int y, uint8 color);
+
 void DrawMap();
+void InitialSPic(int index, int x, int y);
 bool GoThrouht(int x, int y, bool* inBoat);
 bool GoThroughScence(int x, int y);
 void DrawScence(int x, int y);
