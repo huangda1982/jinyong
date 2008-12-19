@@ -31,7 +31,8 @@
 *******************************************************************************/
 
 //#define HAN_FONT	"font/kaiu.ttf"
-#define HAN_FONT	"font/ukai.ttf"
+//#define HAN_FONT	"font/ukai.ttf"
+#define HAN_FONT	"font/bkai00mp.ttf"
 #define ENG_FONT	"font/consola.ttf"
 
 #define SCREEN_WIDTH	640
@@ -72,9 +73,14 @@
 #define STATUS_NUM_FORMAT_3	"/%3d"
 #define STATUS_NUM_FORMAT_4	"%3d/%3d"
 
+#define STATUS_FACE_X	100
+#define STATUS_FACE_Y	80 + FACE_PIC_H
+
+#define STATUS_NAME_X	STATUS_FACE_X
+#define STATUS_NAME_Y	STATUS_FACE_Y + 10
+
 #define FACE_PIC_W	56
 #define FACE_PIC_H	58
-#define NAME_OFFSET	10
 
 #define TEXT_COLOR			0x23
 #define TEXT_NORMAL_COLOR	0x07
@@ -83,6 +89,8 @@
 #define TEXT_YIN_COLOR		0x50
 #define TEXT_YANG_COLOR		TEXT_NORMAL_COLOR
 #define TEXT_UNIFIED_COLOR	0x66
+
+#define FRAME_TEXT_ALPHA		30
 
 /*******************************************************************************
 * In Game                                                                      *
@@ -110,11 +118,11 @@
 #define MAX_WEAPON_MATCH		7		//"武功与武器配合"的组合数量
 #define MIN_KNOWLEDGE			80		//最低有效武学常识
 
-#define MAX_ITEM_NUM			200		//最大物品数量
-#define MAX_ROLE_NUM			320
-#define SCENCE_NUM				84
-#define MAX_MAGIC_NUM			93
-#define MAX_SHOP_NUM			5
+#define ITEM_NUM			200		//最大物品数量
+#define ROLE_NUM			320
+#define SCENCE_NUM			84
+#define MAGIC_NUM			93
+#define SHOP_NUM			5
 
 #define SCENCE_WIDTH			64
 #define SCENCE_HEIGHT			SCENCE_WIDTH
@@ -131,9 +139,13 @@
 #define MAX_HEAD_NUM			189		//有专有头像的最大人物编号, 仅用于对话指令
 #define BEGIN_WALKPIC			2500	//起始的行走贴图
 
-#define FRAME_TEXT_ALPHA		30
-
 #define MAX_PRO_LIST_OFFSET		43
 
 #define WOUND_SERIOUS	33
 #define WOUND_FATAL		66
+
+#define MAGIC_MAX_NUM	10
+#define MAGIC_MAX_LEVEL	10
+
+#define MAGIC_NEXT_EXP_NA		-1
+#define MAGIC_NEXT_EXP_NOTHING	0

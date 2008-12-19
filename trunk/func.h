@@ -70,12 +70,14 @@ void DrawMap();
 void InitialSPic(int index, int x, int y);
 bool GoThrouht(int x, int y, bool* inBoat);
 bool GoThroughScence(int x, int y);
-void DrawScence(int x, int y);
+void DrawScenceOnScreen(int x, int y);
+void DrawScence();
 void* LoadFile(char* filename, void* buffer, size_t size);
 void ReadFiles();
 void UpdateScreen();
 void Start();
 sint32 Random(sint32 a, sint32 b);
 void InitialRole();
+bool MagicLeveup(int role, int* nextLevelExp);
 void ShowStatus(int index);
-;
+
