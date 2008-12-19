@@ -26,6 +26,8 @@
 * 我的话：不保留一切权力，不承担一切责任。不署名。                             *
 *******************************************************************************/
 
+sint32 Random(sint32 a, sint32 b);
+
 void Quit();
 void PlayXMI(int index, int times);
 void StopXMI();
@@ -52,8 +54,13 @@ void DrawPic(SDL_Surface* destSurface, int index, int x, int y, uint32* idxBuffe
 void DrawPicOnScreen(int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight);
 void DrawBigPicOnScreen(int index, byte* buffer);
 void DrawTitlePic(int index, int x, int y);
+
 void DrawScencePic(int index, int x, int y);
+void DrawScenceWithoutRole(int sx, int sy);
+void DrawRoleOnScence(int x, int y);
+
 void DrawMapPic(int index, int x, int y);
+
 void DrawFacePic(int index, int x, int y);
 void DrawBFPic(int index, int x, int y, int highlight);
 void DrawPicToBFPic(int index, int x, int y);
@@ -67,17 +74,18 @@ T_Position DrawBig5Text(char* big5, int x, int y, uint8 color);
 T_Position DrawBig5ShadowText(char* big5, int x, int y, uint8 color);
 
 void DrawMap();
-void InitialSPic(int index, int x, int y);
+void* LoadFile(char* filename, void* buffer, size_t size);
 bool GoThrouht(int x, int y, bool* inBoat);
 bool GoThroughScence(int x, int y);
 void DrawScenceOnScreen(int x, int y);
 void DrawScence();
-void* LoadFile(char* filename, void* buffer, size_t size);
 void ReadFiles();
 void UpdateScreen();
+
 void Start();
-sint32 Random(sint32 a, sint32 b);
 void InitialRole();
-bool MagicLeveup(int role, int* nextLevelExp);
 void ShowStatus(int index);
+bool MagicLeveup(int role, int* nextLevelExp);
+void InGame(bool start);
+int InScence(int index, bool start);
 

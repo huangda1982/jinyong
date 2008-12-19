@@ -92,17 +92,13 @@ sint16 g_entrances[MAP_WIDTH][MAP_HEIGHT] = {{0}};
 T_RGB g_palette[256];
 
 //主地图坐标, 方向, 步数, 是否处于静止
-int g_step = 0;
+int g_mStep = 0;
 bool g_rest = 0;
 int g_ex = 0;
 int g_ey = 0;
-int g_sx = 0;
-int g_sy = 0;
-int g_mx = 0;
-int g_my = 0;
 
 int sFace = 0;
-int sStep = 0;
+int g_sStep = 0;
 //场景内坐标, 场景中心点, 方向, 步数
 int g_curScence = 0;
 int g_curEvent = 0;
@@ -116,6 +112,11 @@ EmInGame g_inGame = 0;
 int g_saveSlot = 0;
 
 T_RoleData g_roleData;
+#define g_sx	(g_roleData.common.sx)
+#define g_sy	(g_roleData.common.sy)
+#define g_mx	(g_roleData.common.mx)
+#define g_my	(g_roleData.common.my)
+#define g_mFace	(g_roleData.common.g_mFace)
 
 sint16 itemList[500] = {0};
 
@@ -125,6 +126,7 @@ sint16 g_scenceData[SCENCE_NUM][SCENCE_LAYER_NUM][SCENCE_WIDTH][SCENCE_HEIGHT] =
 
 T_Event g_scenceEventData[SCENCE_NUM][SCENCE_EVENT_NUM];
 #define g_curScenceEventData	(g_scenceEventData[g_curScence])
+#define g_curEventData			(g_curScenceEventData[g_curEvent])
 
 //当前场景数据
 //0-地面, 1-建筑, 2-物品, 3-事件, 4-建筑高度, 5-物品高度
@@ -621,8 +623,8 @@ T_Position GetScenceXYPos(int sx, int sy)
 	return pos;
 }
 
-//获取地图中坐标在屏幕上的位置
-T_Position GetMapXYPos(int mx, int my, int cmx, int cmy)
+//获取地图中坐标在屏幕上的位置(中心参照)
+T_Position GetMapScenceXYPos(int mx, int my, int cmx, int cmy)
 {
 	T_Position pos = {.x = 0, .y = 0};
 	pos.x = -(mx - cmx) * CELL_WIDTH / 2 + (my - cmy) * CELL_WIDTH / 2 + SCREEN_CENTER_X;
@@ -915,7 +917,7 @@ void DrawMap()
 		{
 			i1 = Mx + i + (sum / 2);
 			i2 = My - i + (sum - sum / 2);
-			Pos = GetMapXYPos(i1, i2, Mx, My);
+			Pos = GetMapScenceXYPos(i1, i2, Mx, My);
 			if ((i1 >= 0) and (i1 < 480) and (i2 >= 0) and (i2 < 480))
 			{
 				if ((sum >= -27) and (sum <= 28) and (i >= -9) and (i <= 9))
@@ -940,7 +942,7 @@ void DrawMap()
 			{
 				x = g_buildingY[i1, i2];
 				y = g_buildingX[i1, i2];
-				Pos = GetMapXYPos(x, y, Mx, My);
+				Pos = GetMapScenceXYPos(x, y, Mx, My);
 				if (g_buildingX[i1, i2] > 0) and (((g_buildingX[i1 - 1, i2 - 1] <> g_buildingX[i1, i2]) and (g_buildingX[i1 + 1, i2 + 1] <> g_buildingX[i1, i2]))
 						or ((g_buildingY[i1 - 1, i2 - 1] <> g_buildingY[i1, i2]) and (g_buildingY[i1 + 1, i2 + 1] <> g_buildingY[i1, i2]))) then
 				{
@@ -956,11 +958,11 @@ void DrawMap()
 				if ((i1 == Mx) and (i2 == My))
 					if ((InShip == 0))
 						if (g_rest == 0)
-							DrawMapPic(2500 + MFace * 7 + g_step, SCREEN_CENTER_X, SCREEN_CENTER_Y)
+							DrawMapPic(WALK_PIC_OFFSET + g_mFace * WALK_PIC_NUM + g_mStep, SCREEN_CENTER_X, SCREEN_CENTER_Y)
 						else
-							DrawMapPic(2528 + Mface * 6 + g_step, SCREEN_CENTER_X, SCREEN_CENTER_Y)
+							DrawMapPic(2528 + g_mFace * 6 + g_mStep, SCREEN_CENTER_X, SCREEN_CENTER_Y)
 					else
-						DrawMapPic(3714 + MFace * 4 + (g_step + 1) / 2, SCREEN_CENTER_X, SCREEN_CENTER_Y);
+						DrawMapPic(3714 + g_mFace * 4 + (g_mStep + 1) / 2, SCREEN_CENTER_X, SCREEN_CENTER_Y);
 				if ((temp[i1, i2] > 0) and (g_buildingX[i1, i2] == i2))
 				{
 					DrawMapPic(g_building[i1, i2] / 2, pos.x, pos.y);
@@ -1049,19 +1051,12 @@ void DrawBFieldOnScreen(int x, int y)
 //画场景到屏幕
 void DrawScence()
 {
-		int   i1 = 0;
-	int  i2 = 0;
-	int  x = 0;
-	int  y = 0;
-	int  xpoint = 0;
-	int ypoint = 0;
-
 	//先画无主角的场景, 再画主角
 	//如在事件中, 则以g_ex, g_ey为中心, 否则以主角坐标为中心
 	if (g_curEvent < 0) {
 		DrawScenceWithoutRole(g_sx, g_sy);
 
-		//DrawRoleOnScence(Sx, Sy);
+		DrawRoleOnScence(g_sx, g_sy);
 	} else {
 		DrawScenceWithoutRole(g_ex, g_ey);
 		/*
@@ -1111,51 +1106,42 @@ void DrawBFieldWithoutRole(x, int y = 0)()
 	//SDL_UpdateRect(g_screenSurface, 0,0,g_screenSurface.w,g_screenSurface.h);
 
 }
+#endif
 
 //画主角于场景
-
-void DrawRoleOnScence(x, int y = 0)()
-	var
-	int   i1 = 0;
-	int  i2 = 0;
+void DrawRoleOnScence(int x, int y)
+{
+	int  sx = 0;
+	int  sy = 0;
 	int  xpoint = 0;
 	int ypoint = 0;
-	pos, pos1: TPosition;
-{
-	if ((SDL_MustLock(g_screenSurface)))
-	{
-		if ((SDL_LockSurface(g_screenSurface) < 0))
-		{
-			MessageBox(0, PChar(Format("Can't lock g_screenSurface : %s", [SDL_GetError])), "Error", MB_OK or MB_ICONHAND);
-			exit;
-		}
-	}
-	pos = GetMapXYPos(Sx, Sy, x, y);
-	DrawScencePic(2500 + SFace * 7 + SStep, pos.x, pos.y - g_scenceData[g_curScence, 4, Sx, Sy], pos.x - 20, pos.y - 60 - g_scenceData[g_curScence, 4, Sx, Sy], 40, 60);
+	
+	T_Position pos = GetMapScenceXYPos(g_sx, g_sy, x, y);
+	DrawScencePic(WALK_PIC_OFFSET + sFace * WALK_PIC_NUM + g_sStep, pos.x, pos.y - g_curScenceData[EmScenceLayerEvent][g_sx][g_sy]);//, pos.x - 20, pos.y - 60 - g_curScenceData[EmScenceLayerEvent][g_sx][g_sy]);//, 40, 60);
 	//重画主角附近的部分, 考虑遮挡
-	for i1 = Sx - 1 to Sx + 10 do
-		for i2 = Sy - 1 to Sy + 10 do
-		{
-			pos1 = GetMapXYPos(i1, i2, x, y);
-			if ((i1 > Sx) and (i2 > Sy))
-				DrawScencePic(g_scenceData[g_curScence, 0, i1, i2] / 2, pos1.x, pos1.y, pos.x - 20, pos.y - 60 - g_scenceData[g_curScence, 4, Sx, Sy], 40, 60);
-			if ((g_scenceData[g_curScence, 1, i1, i2] > 0) and ((i2 > Sy) or (i1 > Sx)))
-				DrawScencePic(g_scenceData[g_curScence, 1, i1, i2] / 2, pos1.x, pos1.y - g_scenceData[g_curScence, 4, i1, i2], pos.x - 20, pos.y - 60 - g_scenceData[g_curScence, 4, Sx, Sy], 40, 60);
-			if ((g_scenceData[g_curScence, 2, i1, i2] > 0) and ((i2 > Sy) or (i1 > Sx)))
-				DrawScencePic(g_scenceData[g_curScence, 2, i1, i2] / 2, pos1.x, pos1.y - g_scenceData[g_curScence, 5, i1, i2], pos.x - 20, pos.y - 60 - g_scenceData[g_curScence, 4, Sx, Sy], 40, 60);
-			if ((g_scenceData[g_curScence, 3, i1, i2] >= 0) and ((i2 > Sy) or (i1 > Sx)) and (g_scenceEventData[g_curScence, g_scenceData[g_curScence, 3, i1, i2], 5] > 0))
-				DrawScencePic(g_scenceEventData[g_curScence, g_scenceData[g_curScence, 3, i1, i2], 5] / 2, pos1.x, pos1.y - g_scenceData[g_curScence, 4, i1, i2], pos.x - 20, pos.y - 60 - g_scenceData[g_curScence, 4, Sx, Sy], 40, 60);
+	/*
+	for (sy = g_sy - 1; sy < g_sy + 1; sy++) {
+		for (sx = g_sx - 1; sx < g_sx + 1; sx++) {
+			pos1 = GetMapScenceXYPos(sx, sy, x, y);
+			if ((sx > g_sx) and (sy > g_sy))
+				DrawScencePic(g_curScenceData[EmScenceLayerGround][sx][sy] / 2, pos1.x, pos1.y);//, pos.x - 20, pos.y - 60 - g_curScenceData[ 4, g_sx, g_sy], 40, 60);
+			if (g_curScenceData[EmScenceLayerBuilding][sx][sy] > 0 && (sy > g_sy || sx > g_sx)) {
+				DrawScencePic(g_curScenceData[EmScenceLayerBuilding][sx][sy] / 2, pos1.x, pos1.y - g_curScenceData[EmScenceLayerBuildingOffset][sx][sy]);// pos.x - 20, pos.y - 60 - g_curScenceData[ 4, g_sx, g_sy], 40, 60);
+			}
+
+			if (g_curScenceData[EmScenceLayerSky][sx][sy] > 0 && (sy > g_sy || sx > g_sx)) {
+				DrawScencePic(g_curScenceData[EmScenceLayerSky][sx][sy] / 2, pos1.x, pos1.y - g_curScenceData[EmScenceLayerSkyOffset][sx][sy]);//, pos.x - 20, pos.y - 60 - g_curScenceData[ 4, g_sx, g_sy], 40, 60);
+			}
+
+			if ((g_curScenceData[EmScenceLayerEvent, sx, sy] >= 0) and ((sy > g_sy) or (sx > g_sx)) and (g_scenceEventData[g_curScence, g_curScenceData[ 3, sx, sy], 5] > 0))
+				DrawScencePic(g_scenceEventData[g_curScence, g_curScenceData[ 3, sx, sy], 5] / 2, pos1.x, pos1.y - g_curScenceData[ 4, sx, sy], pos.x - 20, pos.y - 60 - g_curScenceData[ 4, g_sx, g_sy], 40, 60);
 		}
-
-	if ((SDL_MustLock(g_screenSurface)))
-	{
-		SDL_UnlockSurface(g_screenSurface);
 	}
-
+	*/
 }
 
+#if 0
 //画不含边框的矩形, 用于对话和黑屏
-
 int void DrawRectangle(x = 0;
 		int  y = 0;
 		int  w = 0;
@@ -1254,10 +1240,10 @@ void UpdateScence(xs, int ys = 0)()
 	//如在事件中, 直接给定更新范围
 	if (g_curEvent < 0)
 	{
-		num = g_scenceEventData[g_curScence, g_scenceData[g_curScence, 3, xs, ys], 5] / 2;
+		num = g_scenceEventData[g_curScence, g_curScenceData[ 3, xs, ys], 5] / 2;
 		if (num > 0) offset = g_scenceIdxBuff[num - 1];
 		xp = xp - (g_scencePicBuff[offset + 4] + 256 * g_scencePicBuff[offset + 5]) - 3;
-		yp = yp - (g_scencePicBuff[offset + 6] + 256 * g_scencePicBuff[offset + 7]) - 3 - g_scenceData[g_curScence, 4, xs, ys];
+		yp = yp - (g_scencePicBuff[offset + 6] + 256 * g_scencePicBuff[offset + 7]) - 3 - g_curScenceData[ 4, xs, ys];
 		w = (g_scencePicBuff[offset] + 256 * g_scencePicBuff[offset + 1]) + 20;
 		h = (g_scencePicBuff[offset + 2] + 256 * g_scencePicBuff[offset + 3]) + 6;
 	}
@@ -1275,21 +1261,21 @@ void UpdateScence(xs, int ys = 0)()
 		{
 			x = -i1 * 18 + i2 * 18 + 1151;
 			y = i1 * 9 + i2 * 9 + 9;
-			InitialScenceLayer(g_scenceData[g_curScence, 0, i1, i2] / 2, x, y, xp, yp, w, h);
+			InitialScenceLayer(g_curScenceData[ 0, i1, i2] / 2, x, y, xp, yp, w, h);
 			if ((i1 < 0) or (i2 < 0) or (i1 > 63) or (i2 > 63)) InitialScenceLayer(0, x, y, xp, yp, w, h)
 			else {
-				//InitialScenceLayer(g_scenceData[g_curScence, 0, i1,i2] / 2,x,y,xp,yp,w,h);
-				if ((g_scenceData[g_curScence, 1, i1, i2] > 0))
-					InitialScenceLayer(g_scenceData[g_curScence, 1, i1, i2] / 2, x, y - g_scenceData[g_curScence, 4, i1, i2], xp, yp, w, h);
+				//InitialScenceLayer(g_curScenceData[ 0, i1,i2] / 2,x,y,xp,yp,w,h);
+				if ((g_curScenceData[ 1, i1, i2] > 0))
+					InitialScenceLayer(g_curScenceData[ 1, i1, i2] / 2, x, y - g_curScenceData[ 4, i1, i2], xp, yp, w, h);
 				//if ((i1=Sx) and (i2=Sy))
-				//InitialScenceLayer(BEGIN_WALKPIC+SFace*7+SStep,x,y-g_scenceData[g_curScence, 4, i1,i2],0,0,2304,1152);
-				if ((g_scenceData[g_curScence, 2, i1, i2] > 0))
-					InitialScenceLayer(g_scenceData[g_curScence, 2, i1, i2] / 2, x, y - g_scenceData[g_curScence, 5, i1, i2], xp, yp, w, h);
-				if ((g_scenceData[g_curScence, 3, i1, i2] >= 0) and (g_scenceEventData[g_curScence, g_scenceData[g_curScence, 3, i1, i2], 5] > 0))
-					InitialScenceLayer(g_scenceEventData[g_curScence, g_scenceData[g_curScence, 3, i1, i2], 5] / 2, x, y - g_scenceData[g_curScence, 4, i1, i2], xp, yp, w, h);
+				//InitialScenceLayer(WALK_PIC_OFFSET+SFace*WALK_PIC_NUM+g_sStep,x,y-g_curScenceData[ 4, i1,i2],0,0,2304,1152);
+				if ((g_curScenceData[ 2, i1, i2] > 0))
+					InitialScenceLayer(g_curScenceData[ 2, i1, i2] / 2, x, y - g_curScenceData[ 5, i1, i2], xp, yp, w, h);
+				if ((g_curScenceData[ 3, i1, i2] >= 0) and (g_scenceEventData[g_curScence, g_curScenceData[ 3, i1, i2], 5] > 0))
+					InitialScenceLayer(g_scenceEventData[g_curScence, g_curScenceData[ 3, i1, i2], 5] / 2, x, y - g_curScenceData[ 4, i1, i2], xp, yp, w, h);
 				//if ((i1=RScence[g_curScence*26+15]) and (i2=RScence[g_curScence*26+14]))
 				//DrawScencePic(0,-(i1-Sx)*18+(i2-Sy)*18+SCREEN_CENTER_X,(i1-Sx)*9+(i2-Sy)*9+SCREEN_CENTER_Y);
-				//if ((i1=Sx) and (i2=Sy)) DrawScencePic(2500+SFace*7+SStep,SCREEN_CENTER_X,SCREEN_CENTER_Y-g_scenceData[g_curScence, 4, i1,i2]);
+				//if ((i1=Sx) and (i2=Sy)) DrawScencePic(WALK_PIC_OFFSET+SFace*WALK_PIC_NUM+g_sStep,SCREEN_CENTER_X,SCREEN_CENTER_Y-g_curScenceData[ 4, i1,i2]);
 			}
 		}
 
@@ -1308,7 +1294,7 @@ void UpdateScence(xs, int ys = 0)()
    SOFTSTAR_BEGIN_TALK = Kys_ini.ReadInteger("constant", "SOFTSTAR_BEGIN_TALK", 2547);
    SOFTSTAR_NUM_TALK = Kys_ini.ReadInteger("constant", "SOFTSTAR_NUM_TALK", 18);
    MAX_PHYSICAL_POWER = Kys_ini.ReadInteger("constant", "MAX_PHYSICAL_POWER", 100);
-   BEGIN_WALKPIC = Kys_ini.ReadInteger("constant", "BEGIN_WALKPIC", 2500);
+   BEGIN_WALKPIC = Kys_ini.ReadInteger("constant", "WALK_PIC_OFFSET", 2500);
    MONEY_ID = Kys_ini.ReadInteger("constant", "MONEY_ID", 174);
    COMPASS_ID = Kys_ini.ReadInteger("constant", "COMPASS_ID", 182);
    BEGIN_LEAVE_EVENT = Kys_ini.ReadInteger("constant", "BEGIN_LEAVE_EVENT", 950);
@@ -1459,7 +1445,7 @@ void Start()
 
 	//display_img("open.png", 0, 0);
 
-	//int g_step = 1;
+	//int g_mStep = 0;
 
 	g_fullScreen = FALSE;
 
@@ -1513,11 +1499,9 @@ void Start()
 							}
 						}
 
-						//*********Inscence(BEGIN_SCENCE, TRUE);
 						if (key == SDLK_y) {
 							InGame(TRUE);
 						}
-						//***Walk();
 						break;
 					case EmMainMenuLoad: //选择第一项, 读入进度
 						DrawBigPicOnScreen(0, bigBuffer);
@@ -1634,8 +1618,8 @@ void Walk()
 			if ((Mx2 == Mx) and (My2 == My))
 			{
 				g_rest = 1;
-				g_step = g_step + 1;
-				if (g_step > 6) g_step = 1;
+				g_mStep = g_mStep + 1;
+				if (g_mStep > 6) g_mStep = 0;
 			}
 			Mx2 = Mx;
 			My2 = My;
@@ -1653,20 +1637,20 @@ void Walk()
 		{
 			g_rest = 0;
 			sdl_getmousestate(x, y);
-			if ((x < SCREEN_CENTER_X) and (y < SCREEN_CENTER_Y)) Mface = 2;
-			if ((x > SCREEN_CENTER_X) and (y < SCREEN_CENTER_Y)) Mface = 0;
-			if ((x < SCREEN_CENTER_X) and (y > SCREEN_CENTER_Y)) Mface = 3;
-			if ((x > SCREEN_CENTER_X) and (y > SCREEN_CENTER_Y)) Mface = 1;
+			if ((x < SCREEN_CENTER_X) and (y < SCREEN_CENTER_Y)) g_mFace = 2;
+			if ((x > SCREEN_CENTER_X) and (y < SCREEN_CENTER_Y)) g_mFace = 0;
+			if ((x < SCREEN_CENTER_X) and (y > SCREEN_CENTER_Y)) g_mFace = 3;
+			if ((x > SCREEN_CENTER_X) and (y > SCREEN_CENTER_Y)) g_mFace = 1;
 			Mx1 = Mx;
 			My1 = My;
-			switch (mface) {
+			switch (g_mFace) {
 0: Mx1 = Mx1 - 1;
 1: My1 = My1 + 1;
 2: My1 = My1 - 1;
 3: Mx1 = Mx1 + 1;
 			}
-			g_step = g_step + 1;
-			if (g_step > 7) g_step = 1;
+			g_mStep = g_mStep + 1;
+			if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
 			if (GoThrouht(Mx1, My1) == true)
 			{
 				Mx = Mx1;
@@ -1688,9 +1672,9 @@ SDL_KEYDOWN:
 				if ((event.key.keysym.sym == sdlk_left))
 				{
 					g_rest = 0;
-					MFace = 2;
-					g_step = g_step + 1;
-					if (g_step > 7) g_step = 1;
+					g_mFace = 2;
+					g_mStep = g_mStep + 1;
+					if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
 					if GoThrouht(Mx, My - 1) == true
 						then
 						{
@@ -1704,9 +1688,9 @@ SDL_KEYDOWN:
 				if ((event.key.keysym.sym == sdlk_right))
 				{
 					g_rest = 0;
-					MFace = 1;
-					g_step = g_step + 1;
-					if (g_step > 7) g_step = 1;
+					g_mFace = 1;
+					g_mStep = g_mStep + 1;
+					if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
 					if GoThrouht(Mx, My + 1) == true
 						then
 						{
@@ -1720,9 +1704,9 @@ SDL_KEYDOWN:
 				if ((event.key.keysym.sym == sdlk_up))
 				{
 					g_rest = 0;
-					MFace = 0;
-					g_step = g_step + 1;
-					if (g_step > 7) g_step = 1;
+					g_mFace = 0;
+					g_mStep = g_mStep + 1;
+					if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
 					if GoThrouht(Mx - 1, My) == true
 						then
 						{
@@ -1736,9 +1720,9 @@ SDL_KEYDOWN:
 				if ((event.key.keysym.sym == sdlk_down))
 				{
 					g_rest = 0;
-					MFace = 3;
-					g_step = g_step + 1;
-					if (g_step > 7) g_step = 1;
+					g_mFace = 3;
+					g_mStep = g_mStep + 1;
+					if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
 					if GoThrouht(Mx + 1, My) == true
 						then
 						{
@@ -1808,7 +1792,7 @@ CanEntrance: boolean;
 {
 	x = Mx;
 	y = My;
-	switch (Mface) {
+	switch (g_mFace) {
 0: x = x - 1;
 1: y = y + 1;
 2: y = y - 1;
@@ -1829,9 +1813,9 @@ CanEntrance: boolean;
 		{
 			instruct_14;
 			g_curScence = g_entrances[x, y];
-			SFace = MFace;
-			Mface = 3 - Mface;
-			SStep = 1;
+			SFace = g_mFace;
+			g_mFace = 3 - g_mFace;
+			g_sStep = 0;
 			Sx = RScence[g_curScence].EntranceX;
 			Sy = RScence[g_curScence].EntranceY;
 			//如达成条件, 进入场景并初始化场景坐标
@@ -1881,9 +1865,9 @@ CanEntrance: boolean;
 
 void InGame(bool start)
 {
-		if (start) {
-			InScence(BEGIN_SCENCE, TRUE);
-		}
+	if (start) {
+		InScence(BEGIN_SCENCE, TRUE);
+	}
 }
 
 //Walk in a scence, the returned value is the scence number when you exit. If it is -1.
@@ -2018,8 +2002,8 @@ int InScence(int index, bool start)
 2: Sy1 = Sy1 - 1;
 3: Sx1 = Sx1 + 1;
 		}
-		Sstep = Sstep + 1;
-		if (Sstep == 8) Sstep = 1;
+		g_sStep = g_sStep + 1;
+		if (g_sStep == 8) g_sStep = 0;
 		if (GoThroughScence(Sx1, Sy1) == true)
 		{
 			Sx = Sx1;
@@ -2062,12 +2046,12 @@ SDL_KEYUP:
 3: x = x + 1;
 				}
 				//如有则调用事件
-				if (g_scenceData[g_curScence, 3, x, y] >= 0)
+				if (g_curScenceData[ 3, x, y] >= 0)
 				{
-					g_curEvent = g_scenceData[g_curScence, 3, x, y];
+					g_curEvent = g_curScenceData[ 3, x, y];
 					walking = 0;
 					if (g_scenceEventData[g_curScence, g_curEvent, 2] >= 0)
-						callevent(g_scenceEventData[g_curScence, g_scenceData[g_curScence, 3, x, y], 2]);
+						callevent(g_scenceEventData[g_curScence, g_curScenceData[ 3, x, y], 2]);
 				}
 				g_curEvent = -1;
 			}
@@ -2078,8 +2062,8 @@ SDL_KEYDOWN:
 			if ((event.key.keysym.sym == sdlk_left))
 			{
 				SFace = 2;
-				SStep = Sstep + 1;
-				if (SStep == 8) SStep = 1;
+				g_sStep = g_sStep + 1;
+				if (g_sStep == 8) g_sStep = 0;
 				if GoThroughScence(Sx, Sy - 1) == true
 					then
 					{
@@ -2092,8 +2076,8 @@ SDL_KEYDOWN:
 			if ((event.key.keysym.sym == sdlk_right))
 			{
 				SFace = 1;
-				SStep = Sstep + 1;
-				if (SStep == 8) SStep = 1;
+				g_sStep = g_sStep + 1;
+				if (g_sStep == 8) g_sStep = 0;
 				if GoThroughScence(Sx, Sy + 1) == true
 					then
 					{
@@ -2106,8 +2090,8 @@ SDL_KEYDOWN:
 			if ((event.key.keysym.sym == sdlk_up))
 			{
 				SFace = 0;
-				SStep = Sstep + 1;
-				if (SStep == 8) SStep = 1;
+				g_sStep = g_sStep + 1;
+				if (g_sStep == 8) g_sStep = 0;
 				if GoThroughScence(Sx - 1, Sy) == true
 					then
 					{
@@ -2120,8 +2104,8 @@ SDL_KEYDOWN:
 			if ((event.key.keysym.sym == sdlk_down))
 			{
 				SFace = 3;
-				SStep = Sstep + 1;
-				if (SStep == 8) SStep = 1;
+				g_sStep = g_sStep + 1;
+				if (g_sStep == 8) g_sStep = 0;
 				if (GoThroughScence(Sx + 1, Sy) == true)
 				{
 					Sx = Sx + 1;
@@ -2196,7 +2180,7 @@ void CheckEvent3()
 	var
 	int enum = 0;
 {
-	enum = g_scenceData[g_curScence, 3, Sx, Sy];
+	enum = g_curScenceData[ 3, Sx, Sy];
 	if ((g_scenceEventData[g_curScence, enum, 4] > 0) and (enum >= 0))
 	{
 		g_curEvent = enum;
@@ -3317,11 +3301,11 @@ void int UseItem(inum = 0)()
 3: x = x + 1;
 					}
 					//如面向位置有第2类事件则调用
-					if (g_scenceData[g_curScence, 3, x, y] >= 0)
+					if (g_curScenceData[ 3, x, y] >= 0)
 					{
-						g_curEvent = g_scenceData[g_curScence, 3, x, y];
-						if (g_scenceEventData[g_curScence, g_scenceData[g_curScence, 3, x, y], 3] >= 0)
-							callevent(g_scenceEventData[g_curScence, g_scenceData[g_curScence, 3, x, y], 3]);
+						g_curEvent = g_curScenceData[ 3, x, y];
+						if (g_scenceEventData[g_curScence, g_curScenceData[ 3, x, y], 3] >= 0)
+							callevent(g_scenceEventData[g_curScence, g_curScenceData[ 3, x, y], 3]);
 					}
 					g_curEvent = -1;
 				}
@@ -4223,7 +4207,7 @@ check: boolean;
 	//g_curEvent=num;
 	g_ex = Sx;
 	g_ey = Sy;
-	Sstep = 1;
+	g_sStep = 0;
 	idx = fileopen("kdef.idx", fmopenread);
 	grp = fileopen("kdef.grp", fmopenread);
 	if (num == 0)
@@ -5207,12 +5191,12 @@ AboutMainRole: boolean;
 	if (enum == -1)
 	{
 		enum = g_curEvent;
-		if (g_scenceData[g_curScence, 3, Sx, Sy] >= 0)
-			enum = g_scenceData[g_curScence, 3, Sx, Sy];
+		if (g_curScenceData[ 3, Sx, Sy] >= 0)
+			enum = g_curScenceData[ 3, Sx, Sy];
 		AboutMainRole = true;
 	}
-	if (enum == g_scenceData[g_curScence, 3, Sx, Sy]) AboutMainRole = true;
-	g_scenceData[g_curScence, 3, g_scenceEventData[g_curScence, enum, 10], g_scenceEventData[g_curScence, enum, 9]] = enum;
+	if (enum == g_curScenceData[ 3, Sx, Sy]) AboutMainRole = true;
+	g_curScenceData[ 3, g_scenceEventData[g_curScence, enum, 10], g_scenceEventData[g_curScence, enum, 9]] = enum;
 	for i = beginpic to endpic do
 	{
 		g_scenceEventData[g_curScence, enum, 5] = i;
@@ -5263,8 +5247,8 @@ void instruct_30(x1, y1, x2, int y2 = 0)()
 		{
 			sdl_delay(50);
 			DrawScenceWithoutRole(Sx, Sy);
-			SStep = SStep + 1;
-			if (SStep >= 8) SStep = 1;
+			g_sStep = g_sStep + 1;
+			if (g_sStep >= 8) g_sStep = 0;
 			DrawRoleOnScence(Sx, Sy);
 			SDL_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 			Sy = Sy + s;
@@ -5278,15 +5262,15 @@ void instruct_30(x1, y1, x2, int y2 = 0)()
 		{
 			sdl_delay(50);
 			DrawScenceWithoutRole(Sx, Sy);
-			SStep = SStep + 1;
-			if (SStep >= 8) SStep = 1;
+			g_sStep = g_sStep + 1;
+			if (g_sStep >= 8) g_sStep = 0;
 			DrawRoleOnScence(Sx, Sy);
 			SDL_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 			Sx = Sx + s;
 		}
 	Sx = y2;
 	Sy = x2;
-	SStep = 1;
+	g_sStep = 0;
 	g_ex = Sx;
 	g_ey = Sy;
 }
@@ -5530,8 +5514,8 @@ void instruct_44(enum1, beginpic1, endpic1, enum2, beginpic2, int endpic2 = 0)()
 	var
 	int i = 0;
 {
-	g_scenceData[g_curScence, 3, g_scenceEventData[g_curScence, enum1, 10], g_scenceEventData[g_curScence, enum1, 9]] = enum1;
-	g_scenceData[g_curScence, 3, g_scenceEventData[g_curScence, enum2, 10], g_scenceEventData[g_curScence, enum2, 9]] = enum2;
+	g_curScenceData[ 3, g_scenceEventData[g_curScence, enum1, 10], g_scenceEventData[g_curScence, enum1, 9]] = enum1;
+	g_curScenceData[ 3, g_scenceEventData[g_curScence, enum2, 10], g_scenceEventData[g_curScence, enum2, 9]] = enum2;
 	for i = 0 to endpic1 - beginpic1 do
 	{
 		g_scenceEventData[g_curScence, enum1, 5] = beginpic1 + i;
@@ -5543,7 +5527,7 @@ void instruct_44(enum1, beginpic1, endpic1, enum2, beginpic2, int endpic2 = 0)()
 		DrawScence;
 		SDL_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 	}
-	//g_scenceData[g_curScence, 3, g_scenceEventData[g_curScence, [enum,10],g_scenceEventData[g_curScence, [enum,9]]=-1;
+	//g_curScenceData[ 3, g_scenceEventData[g_curScence, [enum,10],g_scenceEventData[g_curScence, [enum,9]]=-1;
 }
 
 void instruct_45(rnum, int speed = 0)()
@@ -6149,7 +6133,7 @@ word: widestring;
 			e5 = e_getvalue(3, e1, e5);
 			e6 = e_getvalue(4, e1, e6);
 			g_scenceData[e2, e3, e5, e4] = e6;
-			//if (e2=g_curScence) g_scenceData[g_curScence, 3, e5,e4]=e6;;
+			//if (e2=g_curScence) g_curScenceData[ 3, e5,e4]=e6;;
 			//InitialScence;
 			//Redraw;
 			//sdl_updaterect(g_screenSurface,0,0,g_screenSurface.w,g_screenSurface.h);
@@ -6833,7 +6817,7 @@ void DrawRoleOnBfield(x, int y = 0)()
 		}
 	}
 
-	pos = GetMapXYPos(x, y, Bx, By);
+	pos = GetMapScenceXYPos(x, y, Bx, By);
 	for i1 = x - 1 to x + 10 do
 		for i2 = y - 1 to y + 10 do
 		{
@@ -6842,7 +6826,7 @@ void DrawRoleOnBfield(x, int y = 0)()
 
 			if ((Bfield[1, i1, i2] > 0))
 			{
-				pos1 = GetMapXYPos(i1, i2, Bx, By);
+				pos1 = GetMapScenceXYPos(i1, i2, Bx, By);
 				DrawBFPicInRect(Bfield[1, i1, i2] / 2, pos1.x, pos1.y, 0, pos.x - 20, pos.y - 60, 40, 60);
 				if ((Bfield[2, i1, i2] >= 0) and (Brole[Bfield[2, i1, i2]].Dead == 0))
 					DrawBFPicInRect(Rrole[Brole[Bfield[2, x, y]].rnum].HeadNum * 4 + Brole[Bfield[2, i1, i2]].Face + BEGIN_BATTLE_ROLE_PIC, pos1.x, pos1.y, 0, pos.x - 20, pos.y - 60, 40, 60);
@@ -7446,7 +7430,7 @@ pos: TPosition;
 		for i2 = 0 to 63 do
 			if (Bfield[0, i1, i2] > 0)
 			{
-				pos = GetMapXYPos(i1, i2, Bx, By);
+				pos = GetMapScenceXYPos(i1, i2, Bx, By);
 				if ((i1 == Ax) and (i2 == Ay))
 					DrawBFPic(Bfield[0, i1, i2] / 2, pos.x, pos.y, 1)
 				else if ((BField[3, i1, i2] == 0) and (abs(i1 - Bx) + abs(i2 - By) <= step))
@@ -7458,7 +7442,7 @@ pos: TPosition;
 	for i1 = 0 to 63 do
 		for i2 = 0 to 63 do
 		{
-			pos = GetMapXYPos(i1, i2, Bx, By);
+			pos = GetMapScenceXYPos(i1, i2, Bx, By);
 			if (Bfield[1, i1, i2] > 0)
 				DrawBFPic(Bfield[1, i1, i2] / 2, pos.x, pos.y, 0);
 			bnum = Bfield[2, i1, i2];
@@ -7494,7 +7478,7 @@ pos: TPosition;
 	for i1 = 0 to 63 do
 		for i2 = 0 to 63 do
 		{
-			pos = GetMapXYPos(i1, i2, Bx, By);
+			pos = GetMapScenceXYPos(i1, i2, Bx, By);
 			if ((Bfield[2, i1, i2] >= 0) and (Brole[Bfield[2, i1, i2]].Dead == 0))
 				DrawRoleOnBField(i1, i2);
 			if (Bfield[4, i1, i2] > 0)
@@ -7535,7 +7519,7 @@ pos: TPosition;
 			}
 			if ((Bfield[2, i1, i2] == bnum))
 			{
-				pos = GetMapXYPos(i1, i2, Bx, By);
+				pos = GetMapScenceXYPos(i1, i2, Bx, By);
 				DrawAction(apicnum, pos.x, pos.y);
 			}
 		}
