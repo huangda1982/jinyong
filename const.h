@@ -137,9 +137,17 @@
 #define LIFE_HURT				10		//伤害值比例
 #define NOVEL_BOOK				144		//天书起始编码
 #define MAX_HEAD_NUM			189		//有专有头像的最大人物编号, 仅用于对话指令
-#define BEGIN_WALKPIC			2500	//起始的行走贴图
 
-#define MAX_PRO_LIST_OFFSET		43
+#define WALK_PIC_OFFSET	2501	//起始的行走贴图
+#define WALK_PIC_NUM	7
+
+#define REST_PIC_OFFSET	2528	//起始的休息贴图
+#define REST_PIC_NUM	6
+
+#define SHIP_PIC_OFFSET	3714	//起始的行船贴图
+#define SHIP_PIC_NUM	4
+
+#define MAX_PRO_LIST_OFFSET	43
 
 #define WOUND_SERIOUS	33
 #define WOUND_FATAL		66
