@@ -90,7 +90,8 @@
 #define TEXT_YANG_COLOR		TEXT_NORMAL_COLOR
 #define TEXT_UNIFIED_COLOR	0x66
 
-#define FRAME_TEXT_ALPHA		30
+#define FRAME_TEXT_ALPHA		0x4f
+#define FRAME_TEXT_PADDING		5
 
 /*******************************************************************************
 * In Game                                                                      *
@@ -103,10 +104,6 @@
 #define NAME_UTF8_LEN	(NAME_LEN * 4)
 
 #define ITEM_BEGIN_PIC			3501	//物品起始图片
-#define BEGIN_EVENT				691		//初始事件
-#define BEGIN_SCENCE			70		//初始场景
-#define BEGIN_SX				20		//初始坐标(程序中的x, y与游戏中是相反的, 这是早期的遗留问题)
-#define BEGIN_SY				19		//初始坐标
 #define SOFTSTAR_BEGIN_TALK		2547	//软体娃娃对话的开始编号
 #define SOFTSTAR_NUM_TALK		18		//软体娃娃的对话数量
 #define MAX_PHYSICAL_POWER		100		//最大体力
@@ -135,11 +132,11 @@
 #define MAX_HP					999		//最大生命
 #define MAX_MP					999		//最大内功
 #define LIFE_HURT				10		//伤害值比例
-#define NOVEL_BOOK				144		//天书起始编码
+#define THE_BOOKS_OFFSET		144		//天书起始编码
 #define MAX_HEAD_NUM			189		//有专有头像的最大人物编号, 仅用于对话指令
 
 #define WALK_PIC_OFFSET	2501	//起始的行走贴图
-#define WALK_PIC_NUM	7
+#define WALK_PIC_NUM	6
 
 #define REST_PIC_OFFSET	2528	//起始的休息贴图
 #define REST_PIC_NUM	6
@@ -157,3 +154,14 @@
 
 #define MAGIC_NEXT_EXP_NA		-1
 #define MAGIC_NEXT_EXP_NOTHING	0
+
+#define EVENT_NOTHING		-1
+#define EVENT_GAME_START	691		//初始事件
+
+#define SCENCE_HOME			70		//初始场景
+
+#define GAME_START_SX	20		//初始坐标(程序中的x, y与游戏中是相反的, 这是早期的遗留问题)
+#define GAME_START_SY	19		//初始坐标
+
+#define KEY_REPEAT_DELAY	200
+#define KEY_REPEAT			100

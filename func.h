@@ -51,7 +51,8 @@ void DrawFrameRectangle(int x, int y, int w, int h, uint8 frmColor, uint8 insCol
 void DrawRLE8Pic(SDL_Surface* surface, int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight);
 
 void DrawPic(SDL_Surface* destSurface, int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight);
-void DrawPicOnScreen(int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight);
+#define DrawPicOnScreen(index, x, y, idxBuffer, picBuffer, highlight) \
+	DrawPic(g_screenSurface, (index), (x), (y), (idxBuffer), (picBuffer), (highlight))
 void DrawBigPicOnScreen(int index, byte* buffer);
 void DrawTitlePic(int index, int x, int y);
 
@@ -67,7 +68,10 @@ void DrawPicToBFPic(int index, int x, int y);
 void DrawEffect(int index, int x, int y);
 void DrawAction(int index, int x, int y);
 
-void DrawFrameText(char* str, int x, int y, int padding, uint8 txtColor, uint8 frmColor);
+char* Utf8ToBig5(char* utf8);
+char* Big5ToUtf8(char* big5);
+
+void DrawFrameText(char* str, uint8 txtColor, uint8 frmColor);
 T_Position DrawText(char* str, int x, int y, uint8 color);
 T_Position DrawShadowText(char* str, int x, int y, uint8 color);
 T_Position DrawBig5Text(char* big5, int x, int y, uint8 color);
@@ -78,6 +82,7 @@ void* LoadFile(char* filename, void* buffer, size_t size);
 bool GoThrouht(int x, int y, bool* inBoat);
 bool GoThroughScence(int x, int y);
 void DrawScenceOnScreen(int x, int y);
+void ShowScenceName(int scence);
 void DrawScence();
 void ReadFiles();
 void UpdateScreen();

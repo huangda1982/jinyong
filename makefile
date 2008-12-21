@@ -1,11 +1,21 @@
+LIN_CC=gcc
+WCE_CC=arm-wince-pe-gcc
+CFLAG=-g -Wall
+
+LIN_TARGET=jinyong
+WCE_TARGET=jinyongCE.exe
+TARGET=$(LIN_TARGET) $(WCE_TARGET)
+
+LIB_SDL=-lSDL -lSDL_gfx -lSDL_ttf -lSDL_mixer
+
 all: clean linux
-	cp -rf jinyong.bin ..
+	-cp -rf $(TARGET) ..
 
 linux:
-	gcc -o jinyong.bin jinyong.c -g -Wall -lSDL -lSDL_gfx -lSDL_ttf -lSDL_mixer
+	$(LIN_CC) -o $(LIN_TARGET) jinyong.c $(CFLAG) $(LIB_SDL)
 
 wince:
-	arm-wince-pe-gcc -o jinyongCE.exe jinyong.c -g -Wall -lSDL -lSDL_gfx -lSDL_ttf -lSDL_mixer
+	$(WCE_CC) -o $(WCE_TARGET) jinyong.c $(CFLAG) $(LIB_SDL)
 
 clean:
-	rm -f jinyong.bin
+	-rm -f $(TARGET)

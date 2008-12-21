@@ -13,8 +13,8 @@
 * You can build it by Delphi with JEDI-SDL support.                            *
 *                                                                              *
 * This resouce code file which is not perfect so far,                          *
-* can be modified and rebuilt freely,                                          *
-* or translate it to another programming language.                             *
+* can be modified && rebuilt freely,                                          *
+* || translate it to another programming language.                             *
 * But please keep this section when you want to spread a new vision. Thanks.   *
 * Note: it must not be a good idea to use this as a pascal paradigm.           *
 *                                                                              *
@@ -79,6 +79,9 @@ byte* g_actionBuff = NULL;
 uint32* g_faceIdxBuff = NULL;
 byte* g_facePicBuff = NULL;
 
+uint32* g_cmdIdxBuff = NULL;
+byte* g_cmdGrpBuff = NULL;
+
 //主地图数据
 sint16 g_map[MAP_WIDTH][MAP_HEIGHT] = {{0}};
 sint16 g_surface[MAP_WIDTH][MAP_HEIGHT] = {{0}};
@@ -97,7 +100,7 @@ bool g_rest = 0;
 int g_ex = 0;
 int g_ey = 0;
 
-int sFace = 0;
+int g_sFace = 0;
 int g_sStep = 0;
 //场景内坐标, 场景中心点, 方向, 步数
 int g_curScence = 0;
@@ -116,7 +119,7 @@ T_RoleData g_roleData;
 #define g_sy	(g_roleData.common.sy)
 #define g_mx	(g_roleData.common.mx)
 #define g_my	(g_roleData.common.my)
-#define g_mFace	(g_roleData.common.g_mFace)
+#define g_mFace	(g_roleData.common.mFace)
 
 sint16 itemList[500] = {0};
 
@@ -125,8 +128,9 @@ sint16 g_scenceData[SCENCE_NUM][SCENCE_LAYER_NUM][SCENCE_WIDTH][SCENCE_HEIGHT] =
 #define g_curScenceData			(g_scenceData[g_curScence])
 
 T_Event g_scenceEventData[SCENCE_NUM][SCENCE_EVENT_NUM];
-#define g_curScenceEventData	(g_scenceEventData[g_curScence])
-#define g_curEventData			(g_curScenceEventData[g_curEvent])
+#define g_curScenceEventData		(g_scenceEventData[g_curScence])
+#define g_curEventData				(g_curScenceEventData[g_curEvent])
+#define CurScenceXYEventData(sx, xy)	(g_curScenceEventData[g_curScenceData[EmScenceLayerEvent][(sx)][(sy)]])
 
 //当前场景数据
 //0-地面, 1-建筑, 2-物品, 3-事件, 4-建筑高度, 5-物品高度
@@ -203,7 +207,7 @@ int main()
 	g_HanFont = TTF_OpenFont(HAN_FONT, g_HanFontSize);
 	g_EngFont = TTF_OpenFont(ENG_FONT, g_EngFontSize);
 	if (g_HanFont == NULL) {
-		//MessageBox(0, PChar(Format("Error:%s!", [SDL_GetError])), "Error", MB_OK or MB_ICONHAND);
+		//MessageBox(0, PChar(Format("Error:%s!", [SDL_GetError])), "Error", MB_OK || MB_ICONHAND);
 		printf("Error %s\n", SDL_GetError());
 		return 1;
 	}
@@ -211,7 +215,7 @@ int main()
 	//初始化视频系统
 	//Randomize;
 	if ((SDL_Init(SDL_INIT_VIDEO) < 0)) {
-		//MessageBox(0, PChar(Format("Couldn""t initialize SDL : %s", [SDL_GetError])), "Error", MB_OK or MB_ICONHAND);
+		//MessageBox(0, PChar(Format("Couldn""t initialize SDL : %s", [SDL_GetError])), "Error", MB_OK || MB_ICONHAND);
 		printf("Can't initialize SDL : %s\n",  SDL_GetError());
 		SDL_Quit();
 		return 1;
@@ -225,13 +229,15 @@ int main()
 	g_screenSurface = SDL_SetVideoMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32, SDL_SWSURFACE | g_fullScreen ? SDL_FULLSCREEN : 0);
 
 	if (g_screenSurface == NULL) {
-		//MessageBox(0, PChar(Format("Can't set 640x480x8 video mode : %s", [SDL_GetError])), "Error", MB_OK or MB_ICONHAND);
+		//MessageBox(0, PChar(Format("Can't set 640x480x8 video mode : %s", [SDL_GetError])), "Error", MB_OK || MB_ICONHAND);
 		printf("Can't set %dx%d video mode : %s\n", SCREEN_WIDTH, SCREEN_HEIGHT, SDL_GetError());
 		SDL_Quit();
 		exit(1);
 	}
 
 	SDL_WM_SetCaption("All Heros in Kam Yung's Stories - Replicated Edition - Pascal2C", "Pascal: s.weyl");
+
+	SDL_EnableKeyRepeat(KEY_REPEAT, KEY_REPEAT);
 
 	Start();
 
@@ -423,22 +429,40 @@ void SaveGame(int slot)
 	}
 }
 
-//等待任意按键
-int WaitAnyKey()
+int PollKey()
 {
+	int key = 0;
+
+	SDL_Event event;			//事件
+	if (SDL_PollEvent(&event)) {
+		if (event.type == SDL_QUIT) {
+			Quit();
+		} else if (event.type == SDL_KEYDOWN) {
+			if (event.key.keysym.sym) {
+				key = event.key.keysym.sym;
+			}
+		}
+	}
+
+	return key;
+}
+
+//等待任意按键
+int WaitKey()
+{
+	printf("WaitKey: start\n");
 	SDL_Event event;			//事件
 	while (SDL_WaitEvent(&event)) {
 		if (event.type == SDL_QUIT) {
 			Quit();
-		}
-
-		if (event.type == SDL_KEYDOWN) {
+		} else if (event.type == SDL_KEYDOWN) {
 			if (event.key.keysym.sym) {
 				break;
 			}
 		}
 	}
 
+	printf("WaitKey: end\n");
 	return event.key.keysym.sym;
 }
 
@@ -458,12 +482,10 @@ uint32 GetRGBAPixel(uint8 color, uint8 alpha, int highlight)
 {
 	uint32 pixel = 0;
 
-	if (g_palette) {
-		pixel = (((g_palette[color].r << 2) + (g_palette[color].r >> 4) - highlight) << 24)
-			+ (((g_palette[color].g << 2) + (g_palette[color].g >> 4) - highlight) << 16)
-			+ (((g_palette[color].b << 2) + (g_palette[color].b >> 4) - highlight) << 8)
-			+ alpha;
-	}
+	pixel = (((g_palette[color].r << 2) + (g_palette[color].r >> 4) - highlight) << 24)
+		+ (((g_palette[color].g << 2) + (g_palette[color].g >> 4) - highlight) << 16)
+		+ (((g_palette[color].b << 2) + (g_palette[color].b >> 4) - highlight) << 8)
+		+ alpha;
 
 	return pixel;
 }
@@ -472,7 +494,7 @@ uint32 GetPalettePixel(SDL_PixelFormat* format, uint8 color, uint8 alpha, int hi
 {
 	uint32 pixel = 0;
 
-	if (format && g_palette) {
+	if (format) {
 		pixel = SDL_MapRGBA(format,
 			(g_palette[color].r << 2) + (g_palette[color].r >> 4) - highlight,
 			(g_palette[color].g << 2) + (g_palette[color].g >> 4) - highlight,
@@ -597,12 +619,6 @@ void DrawPic(SDL_Surface* destSurface, int index, int x, int y, uint32* idxBuffe
 	}
 }
 
-void DrawPicOnScreen(int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight)
-{
-	DrawPic(g_screenSurface, (index), (x), (y), (idxBuffer), (picBuffer), (highlight));
-	UpdateScreen();
-}
-
 //获取场景中坐标在Buffer上的位置
 T_Position GetScenceBufferXYPos(int sx, int sy)
 {
@@ -644,6 +660,7 @@ void DrawTitlePic(int index, int x, int y)
 
 	if (idxBuffer && grpBuffer) {
 		DrawPicOnScreen(index, x, y, idxBuffer, grpBuffer, 0);
+		UpdateScreen(0);
 
 		free(idxBuffer);
 		free(grpBuffer);
@@ -796,16 +813,20 @@ void DrawEngShadowText(word: PUint16; x_pos = 0;
 #endif
 
 //显示带边框的文字, 仅用于UTF8
-void DrawFrameText(char* str, int x, int y, int padding, uint8 txtColor, uint8 frmColor)
+void DrawFrameText(char* str, uint8 txtColor, uint8 frmColor)
 {
 	uint8 shdColor = txtColor >= 2 ? txtColor -2 : 0xff;
 	SDL_Surface* shadow = TTF_RenderUTF8_Blended(g_HanFont, str, GetSDLColor(shdColor));
 	SDL_Surface* text = TTF_RenderUTF8_Blended(g_HanFont, str, GetSDLColor(txtColor));
 	if (shadow && text) {
-		SDL_BlitSurface(shadow, NULL, g_screenSurface, &(SDL_Rect){x + padding + 1, y + padding, text->w, text->h});
-		SDL_BlitSurface(text, NULL, g_screenSurface, &(SDL_Rect){x + padding, y + padding, text->w, text->h});
+		int x = SCREEN_CENTER_X - (text->w + FRAME_TEXT_PADDING * 2 + 1) /2;
+		int y = SCREEN_CENTER_Y - (text->h + FRAME_TEXT_PADDING * 2) /2;
 
-		DrawFrameRectangle(x, y, text->w + padding * 2 + 1, text->h + padding * 2, frmColor, 255, FRAME_TEXT_ALPHA);
+		DrawFrameRectangle(x, y, text->w + FRAME_TEXT_PADDING * 2 + 1, text->h + FRAME_TEXT_PADDING * 2, frmColor, 0, FRAME_TEXT_ALPHA);
+		//DrawFrameRectangle(x + 1, y + 1, text->w + FRAME_TEXT_PADDING * 2 + 1 -2 , text->h + FRAME_TEXT_PADDING * 2 - 2, frmColor, 0, FRAME_TEXT_ALPHA);
+
+		SDL_BlitSurface(shadow, NULL, g_screenSurface, &(SDL_Rect){x + FRAME_TEXT_PADDING + 1, y + FRAME_TEXT_PADDING, g_screenSurface->w, g_screenSurface->h});
+		SDL_BlitSurface(text, NULL, g_screenSurface, &(SDL_Rect){x + FRAME_TEXT_PADDING, y + FRAME_TEXT_PADDING, g_screenSurface->w, g_screenSurface->h});
 
 		SDL_FreeSurface(shadow);
 		SDL_FreeSurface(text);
@@ -818,45 +839,47 @@ T_Position DrawBig5Text(char* big5, int x, int y, uint8 color)
 	T_Position pos;
 
 	if (big5) {
-		size_t big5Len = strlen(big5);
-		char utf8[TEXT_UTF8_LEN] = {'\0'};;
-		size_t utf8Len = TEXT_UTF8_LEN;
-
-		char* in = big5;
-		char* out = utf8;
-		if (utf8) {
-			iconv(g_big5ToUtf8, &in, &big5Len, &out, &utf8Len);
-			pos = DrawText(utf8, x, y, color);
-		}
+		pos = DrawText(Utf8ToBig5(big5), x, y, color);
 	}
 
 	return pos;
 }
 
-#if 0
 //UTF8转为big5, 仅用于输入姓名
-function UTF8ToBig5(str: PWideChar): string;
-var
-int len = 0;
+char* Utf8ToBig5(char* utf8)
 {
-	len = WideCharToMultiByte(950, 0, PWideChar(str), -1, NULL, 0, NULL, NULL);
-	setlength(result, len + 1);
-	WideCharToMultiByte(950, 0, PWideChar(str), -1, pchar(result), len + 1, NULL, NULL);
+	static char big5[TEXT_BIG5_LEN];
+	memset(big5, 0, TEXT_BIG5_LEN);
 
+	if (utf8) {
+		size_t utf8Len = strlen(utf8);
+		size_t big5Len = TEXT_BIG5_LEN;
+
+		char* in = utf8;
+		char* out = big5;
+		iconv(g_utf8ToBig5, &in, &utf8Len, &out, &big5Len);
+	}
+
+	return utf8;
 }
 
 //big5转为UTF8
-function Big5ToUTF8(str: PChar): widestring;
-var
-int len = 0;
+char* Big5ToUtf8(char* big5)
 {
-	len = MultiByteToWideChar(950, 0, PChar(str), -1, NULL, 0);
-	setlength(result, len - 1);
-	MultiByteToWideChar(950, 0, PChar(str), length(str), pwidechar(result), len + 1);
-	result = " " + result;
+	static char utf8[TEXT_UTF8_LEN];
+	memset(utf8, 0, TEXT_UTF8_LEN);
 
+	if (big5) {
+		size_t big5Len = strlen(big5);
+		size_t utf8Len = TEXT_UTF8_LEN;
+
+		char* in = big5;
+		char* out = utf8;
+		iconv(g_big5ToUtf8, &in, &big5Len, &out, &utf8Len);
+	}
+
+	return utf8;
 }
-#endif
 
 //显示big5阴影文字
 T_Position DrawBig5ShadowText(char* big5, int x, int y, uint8 color)
@@ -864,19 +887,11 @@ T_Position DrawBig5ShadowText(char* big5, int x, int y, uint8 color)
 	T_Position pos;
 
 	if (big5) {
-		size_t big5Len = strlen(big5);
-		char utf8[TEXT_UTF8_LEN] = {'\0'};;
-		size_t utf8Len = TEXT_UTF8_LEN;
-
-		char* in = big5;
-		char* out = utf8;
-		if (utf8) {
-			iconv(g_big5ToUtf8, &in, &big5Len, &out, &utf8Len);
-			if (color >= 2) {
-				DrawText(utf8, x + 1, y, color - 2);
-			}
-			pos = DrawText(utf8, x, y, color);
+		char* utf8 = Utf8ToBig5(big5);
+		if (color >= 2) {
+			DrawText(utf8, x + 1, y, color - 2);
 		}
+		pos = DrawText(utf8, x, y, color);
 	}
 
 	return pos;
@@ -918,9 +933,9 @@ void DrawMap()
 			i1 = Mx + i + (sum / 2);
 			i2 = My - i + (sum - sum / 2);
 			Pos = GetMapScenceXYPos(i1, i2, Mx, My);
-			if ((i1 >= 0) and (i1 < 480) and (i2 >= 0) and (i2 < 480))
+			if ((i1 >= 0) && (i1 < 480) && (i2 >= 0) && (i2 < 480))
 			{
-				if ((sum >= -27) and (sum <= 28) and (i >= -9) and (i <= 9))
+				if ((sum >= -27) && (sum <= 28) && (i >= -9) && (i <= 9))
 				{
 					DrawMapPic(g_map[i1, i2] / 2, pos.x, pos.y);
 					if (g_surface[i1, i2] > 0)
@@ -938,13 +953,13 @@ void DrawMap()
 		{
 			i1 = Mx + i + (sum / 2);
 			i2 = My - i + (sum - sum / 2);
-			if ((i1 >= 0) and (i1 < 480) and (i2 >= 0) and (i2 < 480))
+			if ((i1 >= 0) && (i1 < 480) && (i2 >= 0) && (i2 < 480))
 			{
 				x = g_buildingY[i1, i2];
 				y = g_buildingX[i1, i2];
 				Pos = GetMapScenceXYPos(x, y, Mx, My);
-				if (g_buildingX[i1, i2] > 0) and (((g_buildingX[i1 - 1, i2 - 1] <> g_buildingX[i1, i2]) and (g_buildingX[i1 + 1, i2 + 1] <> g_buildingX[i1, i2]))
-						or ((g_buildingY[i1 - 1, i2 - 1] <> g_buildingY[i1, i2]) and (g_buildingY[i1 + 1, i2 + 1] <> g_buildingY[i1, i2]))) then
+				if (g_buildingX[i1, i2] > 0) && (((g_buildingX[i1 - 1, i2 - 1] <> g_buildingX[i1, i2]) && (g_buildingX[i1 + 1, i2 + 1] <> g_buildingX[i1, i2]))
+						|| ((g_buildingY[i1 - 1, i2 - 1] <> g_buildingY[i1, i2]) && (g_buildingY[i1 + 1, i2 + 1] <> g_buildingY[i1, i2]))) then
 				{
 
 					if (temp[x, y] > 0)
@@ -955,7 +970,7 @@ void DrawMap()
 				}
 
 				//如在水面上则绘制船的贴图
-				if ((i1 == Mx) and (i2 == My))
+				if ((i1 == Mx) && (i2 == My))
 					if ((InShip == 0))
 						if (g_rest == 0)
 							DrawMapPic(WALK_PIC_OFFSET + g_mFace * WALK_PIC_NUM + g_mStep, SCREEN_CENTER_X, SCREEN_CENTER_Y)
@@ -963,7 +978,7 @@ void DrawMap()
 							DrawMapPic(2528 + g_mFace * 6 + g_mStep, SCREEN_CENTER_X, SCREEN_CENTER_Y)
 					else
 						DrawMapPic(3714 + g_mFace * 4 + (g_mStep + 1) / 2, SCREEN_CENTER_X, SCREEN_CENTER_Y);
-				if ((temp[i1, i2] > 0) and (g_buildingX[i1, i2] == i2))
+				if ((temp[i1, i2] > 0) && (g_buildingX[i1, i2] == i2))
 				{
 					DrawMapPic(g_building[i1, i2] / 2, pos.x, pos.y);
 					temp[i1, i2] = 0;
@@ -981,42 +996,52 @@ void DrawMap()
 #endif
 
 //判定主地图某个位置能否行走, 是否变成船
-bool GoThrouht(int x, int y, bool* inBoat)
+bool GoThrough(int mx, int my, bool* inBoat)
 {
 	bool goThrough = FALSE;
 
 	if (inBoat) {
-		goThrough = x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT;
-		goThrough &= g_buildingX[x][y] == 0;
-		goThrough &= g_map[x][y] != 838;
-		goThrough &= g_map[x][y] < 621 && g_map[x][y] > 670;
+		goThrough = mx >= 0 && mx < MAP_WIDTH && my >= 0 && my < MAP_HEIGHT;
+		goThrough &= g_buildingX[mx][my] == 0;
+		goThrough &= g_map[mx][my] != 838;
+		goThrough &= g_map[mx][my] < 621 || g_map[mx][my] > 670;
 
-		*inBoat = g_map[x][y] < 358 && g_map[x][y] > 362;
-		*inBoat &= g_map[x][y] < 506 && g_map[x][y] > 670;
-		*inBoat &= g_map[x][y] < 1016 && g_map[x][y] > 1022;
+		*inBoat = g_map[mx][my] < 358 || g_map[mx][my] > 362;
+		*inBoat &= g_map[mx][my] < 506 || g_map[mx][my] > 670;
+		*inBoat &= g_map[mx][my] < 1016 || g_map[mx][my] > 1022;
 	}
 
+	printf("GoThrough: %d\n", goThrough);
 	return goThrough;
 }
 
 //判定场景内某个位置能否行走
-bool GoThroughScence(int x, int y)
+bool GoThroughScence(int sx, int sy)
 {
 	bool goThroughScence = FALSE;
 
-	int eventID = 0;
-	goThroughScence = g_curScenceData[EmScenceLayerBuilding][x][y] == 0;
-	goThroughScence &= (eventID = g_curScenceData[EmScenceLayerEvent][x][y] < 0)
-		|| !g_curScenceEventData[eventID].block;
+	if (sx >= 0 && sx < SCENCE_WIDTH && sy >= 0 && sy < SCENCE_HEIGHT) {
+	printf("GoThroughScence0: %d\n", goThroughScence);
+		goThroughScence = g_curScenceData[EmScenceLayerBuilding][sx][sy] == 0;
+	printf("GoThroughScence1: %d\n", goThroughScence);
+		goThroughScence &= g_curScenceData[EmScenceLayerEvent][sx][sy] < 0
+			|| !CurScenceXYEventData(sx, sy).block;
+	printf("GoThroughScence2: %d\n", goThroughScence);
 
-	goThroughScence &= g_curScenceData[EmScenceLayerGround][x][y]
-		< 358 && g_curScenceData[EmScenceLayerBuilding][x][y] > 362;
-	goThroughScence &= g_curScenceData[EmScenceLayerGround][x][y]
-		< 522 && g_curScenceData[EmScenceLayerBuilding][x][y] > 1022;
-	goThroughScence &= g_curScenceData[EmScenceLayerGround][x][y]
-		< 1324 && g_curScenceData[EmScenceLayerBuilding][x][y] > 1330;
-	goThroughScence &= g_curScenceData[EmScenceLayerGround][x][y] != 1348;
+		goThroughScence &= g_curScenceData[EmScenceLayerGround][sx][sy]
+			< 358 || g_curScenceData[EmScenceLayerGround][sx][sy] > 362;
+	printf("GoThroughScence3: %d\n", goThroughScence);
+		goThroughScence &= g_curScenceData[EmScenceLayerGround][sx][sy]
+			< 522 || g_curScenceData[EmScenceLayerGround][sx][sy] > 1022;
+	printf("GoThroughScence4: %d\n", goThroughScence);
+		goThroughScence &= g_curScenceData[EmScenceLayerGround][sx][sy]
+			< 1324 || g_curScenceData[EmScenceLayerGround][sx][sy] > 1330;
+	printf("GoThroughScence5: %d\n", goThroughScence);
+		goThroughScence &= g_curScenceData[EmScenceLayerGround][sx][sy] != 1348;
+	printf("GoThroughScence6: %d\n", goThroughScence);
+	}
 
+	printf("GoThroughScence: %d\n", goThroughScence);
 	return goThroughScence;
 }
 
@@ -1053,23 +1078,21 @@ void DrawScence()
 {
 	//先画无主角的场景, 再画主角
 	//如在事件中, 则以g_ex, g_ey为中心, 否则以主角坐标为中心
-	if (g_curEvent < 0) {
+	if (g_curEvent == EVENT_NOTHING) {
 		DrawScenceWithoutRole(g_sx, g_sy);
-
 		DrawRoleOnScence(g_sx, g_sy);
 	} else {
 		DrawScenceWithoutRole(g_ex, g_ey);
-		/*
-		if ((g_scenceEventData[g_curScence, g_curEvent, 10] == Sx) and (g_scenceEventData[g_curScence, g_curEvent, 9] == Sy)) {
-			if (g_scenceEventData[g_curScence, g_curEvent, 5] <= 0) {
+		if (g_curEventData.x == g_sx && g_curEventData.y == g_sy) {
+			if (g_curEventData.pic1 <= 0) {
 				DrawRoleOnScence(g_ex, g_ey);
 			}
 		} else {
 			DrawRoleOnScence(g_ex, g_ey);
 		}
-			*/
 	}
-	while(1) UpdateScreen();
+
+	UpdateScreen();
 }
 
 //画不含主角的场景(与DrawScenceByCenter相同)
@@ -1092,7 +1115,7 @@ void DrawBFieldWithoutRole(x, int y = 0)()
 	{
 		if ((SDL_LockSurface(g_screenSurface) < 0))
 		{
-			MessageBox(0, PChar(Format("Can't lock g_screenSurface : %s", [SDL_GetError])), "Error", MB_OK or MB_ICONHAND);
+			MessageBox(0, PChar(Format("Can't lock g_screenSurface : %s", [SDL_GetError])), "Error", MB_OK || MB_ICONHAND);
 			exit;
 		}
 	}
@@ -1113,17 +1136,15 @@ void DrawRoleOnScence(int x, int y)
 {
 	int  sx = 0;
 	int  sy = 0;
-	int  xpoint = 0;
-	int ypoint = 0;
 	
 	T_Position pos = GetMapScenceXYPos(g_sx, g_sy, x, y);
-	DrawScencePic(WALK_PIC_OFFSET + sFace * WALK_PIC_NUM + g_sStep, pos.x, pos.y - g_curScenceData[EmScenceLayerEvent][g_sx][g_sy]);//, pos.x - 20, pos.y - 60 - g_curScenceData[EmScenceLayerEvent][g_sx][g_sy]);//, 40, 60);
+	DrawScencePic(WALK_PIC_OFFSET + g_sFace * (WALK_PIC_NUM + 1) + 1 + g_sStep, pos.x, pos.y - g_curScenceData[EmScenceLayerEvent][g_sx][g_sy]);//, pos.x - 20, pos.y - 60 - g_curScenceData[EmScenceLayerEvent][g_sx][g_sy]);//, 40, 60);
 	//重画主角附近的部分, 考虑遮挡
-	/*
-	for (sy = g_sy - 1; sy < g_sy + 1; sy++) {
-		for (sx = g_sx - 1; sx < g_sx + 1; sx++) {
-			pos1 = GetMapScenceXYPos(sx, sy, x, y);
-			if ((sx > g_sx) and (sy > g_sy))
+	for (sy = g_sy; sy <SCENCE_HEIGHT; sy++) {
+		for (sx = g_sx; sx < SCENCE_WIDTH; sx++) {
+			T_Position pos1 = GetMapScenceXYPos(sx, sy, x, y);
+
+			if ((sx > g_sx) && (sy > g_sy))
 				DrawScencePic(g_curScenceData[EmScenceLayerGround][sx][sy] / 2, pos1.x, pos1.y);//, pos.x - 20, pos.y - 60 - g_curScenceData[ 4, g_sx, g_sy], 40, 60);
 			if (g_curScenceData[EmScenceLayerBuilding][sx][sy] > 0 && (sy > g_sy || sx > g_sx)) {
 				DrawScencePic(g_curScenceData[EmScenceLayerBuilding][sx][sy] / 2, pos1.x, pos1.y - g_curScenceData[EmScenceLayerBuildingOffset][sx][sy]);// pos.x - 20, pos.y - 60 - g_curScenceData[ 4, g_sx, g_sy], 40, 60);
@@ -1133,11 +1154,10 @@ void DrawRoleOnScence(int x, int y)
 				DrawScencePic(g_curScenceData[EmScenceLayerSky][sx][sy] / 2, pos1.x, pos1.y - g_curScenceData[EmScenceLayerSkyOffset][sx][sy]);//, pos.x - 20, pos.y - 60 - g_curScenceData[ 4, g_sx, g_sy], 40, 60);
 			}
 
-			if ((g_curScenceData[EmScenceLayerEvent, sx, sy] >= 0) and ((sy > g_sy) or (sx > g_sx)) and (g_scenceEventData[g_curScence, g_curScenceData[ 3, sx, sy], 5] > 0))
-				DrawScencePic(g_scenceEventData[g_curScence, g_curScenceData[ 3, sx, sy], 5] / 2, pos1.x, pos1.y - g_curScenceData[ 4, sx, sy], pos.x - 20, pos.y - 60 - g_curScenceData[ 4, g_sx, g_sy], 40, 60);
+			if (g_curScenceData[EmScenceLayerEvent][sx][sy] >= 0 && (sy > g_sy || sx > g_sx) && CurScenceXYEventData(sx, xy).pic1 > 0)
+				DrawScencePic(CurScenceXYEventData(sx, xy).pic1 / 2, pos1.x, pos1.y - g_curScenceData[EmScenceLayerSky][sx][sy]);//, pos.x - 20, pos.y - 60 - g_curScenceData[ 4, g_sx, g_sy], 40, 60);
 		}
 	}
-	*/
 }
 
 #if 0
@@ -1159,10 +1179,10 @@ pix, pix1, pix2, pix3, pix4, color1, color2, color3, color4: Uint32;
 		for i2 = y to y + h do
 		{
 			pix = getpixel(g_screenSurface, i1, i2);
-			pix1 = pix and 0xFF; color1 = colorin and 0xFF;
-			pix2 = pix shr 8 and 0xFF; color2 = colorin shr 8 and 0xFF;
-			pix3 = pix shr 16 and 0xFF; color3 = colorin shr 16 and 0xFF;
-			pix4 = pix shr 24 and 0xFF; color4 = colorin shr 24 and 0xFF;
+			pix1 = pix && 0xFF; color1 = colorin && 0xFF;
+			pix2 = pix shr 8 && 0xFF; color2 = colorin shr 8 && 0xFF;
+			pix3 = pix shr 16 && 0xFF; color3 = colorin shr 16 && 0xFF;
+			pix4 = pix shr 24 && 0xFF; color4 = colorin shr 24 && 0xFF;
 			pix1 = (alphe * color1 + (100 - alphe) * pix1) / 100;
 			pix2 = (alphe * color2 + (100 - alphe) * pix2) / 100;
 			pix3 = (alphe * color3 + (100 - alphe) * pix3) / 100;
@@ -1214,8 +1234,8 @@ void InitialScence()
 					pos.x, pos.y - g_curScenceData[EmScenceLayerSkyOffset][sx][sy]);
 			}
 
-			if (g_curScenceData[EmScenceLayerEvent][sx][sy] >= 0 && g_curScenceEventData[g_curScenceData[EmScenceLayerEvent][sx][sy]].pic1 > 0) {
-				InitialScenceLayer(g_curScenceEventData[g_curScenceData[EmScenceLayerEvent][sx][sy]].pic1 / 2,
+			if (g_curScenceData[EmScenceLayerEvent][sx][sy] >= 0 && CurScenceXYEventData(sx, xy).pic1 > 0) {
+				InitialScenceLayer(CurScenceXYEventData(sx, xy).pic1 / 2,
 					pos.x, pos.y - g_curScenceData[EmScenceLayerBuildingOffset][sx][sy]);
 			}
 		}
@@ -1223,34 +1243,24 @@ void InitialScence()
 }
 
 #if 0
-
 //更改场景映像, 用于动画, 场景内动态效果
-void UpdateScence(xs, int ys = 0)()
-	var
-	int   i1 = 0;
-	int  i2 = 0;
-	int  x = 0;
-	int y = 0;
-	int   num = 0;
-	int offset = 0;
-	xp, yp, w, h: smallint;
+void UpdateScence(int sx, int sy)
 {
-	xp = -xs * 18 + ys * 18 + 1151;
-	yp = xs * 9 + ys * 9;
+	T_Position pos = GetScenceBufferXpos.Yos(sx, xy);
+	int pic = -1;
+
 	//如在事件中, 直接给定更新范围
-	if (g_curEvent < 0)
-	{
-		num = g_scenceEventData[g_curScence, g_curScenceData[ 3, xs, ys], 5] / 2;
-		if (num > 0) offset = g_scenceIdxBuff[num - 1];
-		xp = xp - (g_scencePicBuff[offset + 4] + 256 * g_scencePicBuff[offset + 5]) - 3;
-		yp = yp - (g_scencePicBuff[offset + 6] + 256 * g_scencePicBuff[offset + 7]) - 3 - g_curScenceData[ 4, xs, ys];
+	pic = CurScenceXYEventData(sx, sy).pic1 / 2;
+	if (g_curEvent == EVENT_NOTHING && pic > 0) {
+		int offset = g_scenceIdxBuff[pic - 1];
+		pos.x = pos.x - (g_scencePicBuff[offset + 4] + 256 * g_scencePicBuff[offset + 5]) - 3;
+		pos.y = pos.y - (g_scencePicBuff[offset + 6] + 256 * g_scencePicBuff[offset + 7]) - 3 - g_curScenceData[ 4, xs, ys];
 		w = (g_scencePicBuff[offset] + 256 * g_scencePicBuff[offset + 1]) + 20;
 		h = (g_scencePicBuff[offset + 2] + 256 * g_scencePicBuff[offset + 3]) + 6;
-	}
-	if ((g_curEvent >= 0) or (num <= 0))
-	{
-		xp = xp - 30;
-		yp = yp - 120;
+
+	} else {
+		pos.x = pos.x - 30;
+		pos.y = pos.y - 120;
 		w = 100;
 		h = 130;
 	}
@@ -1261,21 +1271,21 @@ void UpdateScence(xs, int ys = 0)()
 		{
 			x = -i1 * 18 + i2 * 18 + 1151;
 			y = i1 * 9 + i2 * 9 + 9;
-			InitialScenceLayer(g_curScenceData[ 0, i1, i2] / 2, x, y, xp, yp, w, h);
-			if ((i1 < 0) or (i2 < 0) or (i1 > 63) or (i2 > 63)) InitialScenceLayer(0, x, y, xp, yp, w, h)
+			InitialScenceLayer(g_curScenceData[ 0, i1, i2] / 2, x, y, pos.x, pos.y, w, h);
+			if ((i1 < 0) || (i2 < 0) || (i1 > 63) || (i2 > 63)) InitialScenceLayer(0, x, y, pos.x, pos.y, w, h)
 			else {
-				//InitialScenceLayer(g_curScenceData[ 0, i1,i2] / 2,x,y,xp,yp,w,h);
+				//InitialScenceLayer(g_curScenceData[ 0, i1,i2] / 2,x,y,pos.x,pos.y,w,h);
 				if ((g_curScenceData[ 1, i1, i2] > 0))
-					InitialScenceLayer(g_curScenceData[ 1, i1, i2] / 2, x, y - g_curScenceData[ 4, i1, i2], xp, yp, w, h);
-				//if ((i1=Sx) and (i2=Sy))
-				//InitialScenceLayer(WALK_PIC_OFFSET+SFace*WALK_PIC_NUM+g_sStep,x,y-g_curScenceData[ 4, i1,i2],0,0,2304,1152);
+					InitialScenceLayer(g_curScenceData[ 1, i1, i2] / 2, x, y - g_curScenceData[ 4, i1, i2], pos.x, pos.y, w, h);
+				//if ((i1=Sx) && (i2=Sy))
+				//InitialScenceLayer(WALK_PIC_OFFSET+g_sFace*WALK_PIC_pic+g_sStep,x,y-g_curScenceData[ 4, i1,i2],0,0,2304,1152);
 				if ((g_curScenceData[ 2, i1, i2] > 0))
-					InitialScenceLayer(g_curScenceData[ 2, i1, i2] / 2, x, y - g_curScenceData[ 5, i1, i2], xp, yp, w, h);
-				if ((g_curScenceData[ 3, i1, i2] >= 0) and (g_scenceEventData[g_curScence, g_curScenceData[ 3, i1, i2], 5] > 0))
-					InitialScenceLayer(g_scenceEventData[g_curScence, g_curScenceData[ 3, i1, i2], 5] / 2, x, y - g_curScenceData[ 4, i1, i2], xp, yp, w, h);
-				//if ((i1=RScence[g_curScence*26+15]) and (i2=RScence[g_curScence*26+14]))
+					InitialScenceLayer(g_curScenceData[ 2, i1, i2] / 2, x, y - g_curScenceData[ 5, i1, i2], pos.x, pos.y, w, h);
+				if ((g_curScenceData[ 3, i1, i2] >= 0) && (g_curScenceEventData[ g_curScenceData[ 3, i1, i2], 5] > 0))
+					InitialScenceLayer(g_curScenceEventData[ g_curScenceData[ 3, i1, i2], 5] / 2, x, y - g_curScenceData[ 4, i1, i2], pos.x, pos.y, w, h);
+				//if ((i1=RScence[g_curScence*26+15]) && (i2=RScence[g_curScence*26+14]))
 				//DrawScencePic(0,-(i1-Sx)*18+(i2-Sy)*18+SCREEN_CENTER_X,(i1-Sx)*9+(i2-Sy)*9+SCREEN_CENTER_Y);
-				//if ((i1=Sx) and (i2=Sy)) DrawScencePic(WALK_PIC_OFFSET+SFace*WALK_PIC_NUM+g_sStep,SCREEN_CENTER_X,SCREEN_CENTER_Y-g_curScenceData[ 4, i1,i2]);
+				//if ((i1=Sx) && (i2=Sy)) DrawScencePic(WALK_PIC_OFFSET+g_sFace*WALK_PIC_pic+g_sStep,SCREEN_CENTER_X,SCREEN_CENTER_Y-g_curScenceData[ 4, i1,i2]);
 			}
 		}
 
@@ -1387,6 +1397,16 @@ void ReadFiles()
 	   }
 	   LoadFile("wmp", g_bfPicBuff, 0);
 	   */
+	if (g_cmdIdxBuff) {
+		free(g_cmdIdxBuff);
+		g_cmdIdxBuff = NULL;
+	}
+	g_cmdIdxBuff = LoadFile("kdef.idx", NULL, 0);
+	if (g_cmdGrpBuff) {
+		free(g_cmdGrpBuff);
+		g_cmdGrpBuff = NULL;
+	}
+	g_cmdGrpBuff = LoadFile("kdef.grp", NULL, 0);
 
 	if (g_effIdxBuff) {
 		free(g_effIdxBuff);
@@ -1474,7 +1494,7 @@ void Start()
 		DrawPicOnScreen(menu + 1, 275, 250 + menu * 20, idxBuffer, grpBuffer, 0);
 		UpdateScreen();
 
-		key = WaitAnyKey();
+		key = WaitKey();
 		switch (key) {
 			case SDLK_RETURN:
 			case SDLK_SPACE:
@@ -1493,7 +1513,7 @@ void Start()
 							InitialRole();
 							ShowStatus(0);
 
-							key = WaitAnyKey();
+							key = WaitKey();
 							if (key == SDLK_y || key == SDLK_ESCAPE) {
 								break;
 							}
@@ -1509,7 +1529,7 @@ void Start()
 						//******menuloadAtBeginning;
 						//****redraw();
 						UpdateScreen();
-						//***g_curEvent = -1; //when g_curEvent=-1, Draw scence by Sx, Sy. Or by g_ex, g_ey.
+						//***g_curEvent = -1; //when g_curEvent=-1, Draw scence by Sx, Sy. || by g_ex, g_ey.
 						//***Walk();
 						break;
 					case EmMainMenuExit: //如选择第2项, 则退出(所有编号从0开始)
@@ -1545,18 +1565,8 @@ sint32 Random(sint32 a, sint32 b)
 void InitialRole()
 {
 	T_Role* hero = &g_roleData.roles[0];
-	//memset(hero, 0, sizeof(T_Role));
 
-	char utf8[] = "江湖小蝦米";
-	size_t utf8Len = sizeof(utf8);
-	char big5[NAME_LEN] = {'\0'};
-	size_t big5Len = NAME_LEN;
-
-	char* in = utf8;
-	char* out = big5;
-	iconv(g_utf8ToBig5, &in, &utf8Len, &out, &big5Len);
-	strcpy(hero->name, big5);//UTF8tobig5(@name[1]);
-
+	strcpy(hero->name, Utf8ToBig5("江湖小蝦米"));
 	hero->maxLife = Random(25, 50);
 	hero->maxNeili = Random(25, 50);
 	hero->neiliType = Random(0, 2);
@@ -1613,9 +1623,9 @@ void Walk()
 		//主地图动态效果, 实际仅有主角的动作
 		now = sdl_getticks;
 
-		if ((integer(now - next_time) > 0) and (g_inGame == 0))
+		if ((integer(now - next_time) > 0) && (g_inGame == 0))
 		{
-			if ((Mx2 == Mx) and (My2 == My))
+			if ((Mx2 == Mx) && (My2 == My))
 			{
 				g_rest = 1;
 				g_mStep = g_mStep + 1;
@@ -1637,10 +1647,10 @@ void Walk()
 		{
 			g_rest = 0;
 			sdl_getmousestate(x, y);
-			if ((x < SCREEN_CENTER_X) and (y < SCREEN_CENTER_Y)) g_mFace = 2;
-			if ((x > SCREEN_CENTER_X) and (y < SCREEN_CENTER_Y)) g_mFace = 0;
-			if ((x < SCREEN_CENTER_X) and (y > SCREEN_CENTER_Y)) g_mFace = 3;
-			if ((x > SCREEN_CENTER_X) and (y > SCREEN_CENTER_Y)) g_mFace = 1;
+			if ((x < SCREEN_CENTER_X) && (y < SCREEN_CENTER_Y)) g_mFace = 2;
+			if ((x > SCREEN_CENTER_X) && (y < SCREEN_CENTER_Y)) g_mFace = 0;
+			if ((x < SCREEN_CENTER_X) && (y > SCREEN_CENTER_Y)) g_mFace = 3;
+			if ((x > SCREEN_CENTER_X) && (y > SCREEN_CENTER_Y)) g_mFace = 1;
 			Mx1 = Mx;
 			My1 = My;
 			switch (g_mFace) {
@@ -1651,7 +1661,7 @@ void Walk()
 			}
 			g_mStep = g_mStep + 1;
 			if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
-			if (GoThrouht(Mx1, My1) == true)
+			if (GoThrough(Mx1, My1) == true)
 			{
 				Mx = Mx1;
 				My = My1;
@@ -1675,7 +1685,7 @@ SDL_KEYDOWN:
 					g_mFace = 2;
 					g_mStep = g_mStep + 1;
 					if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
-					if GoThrouht(Mx, My - 1) == true
+					if GoThrough(Mx, My - 1) == true
 						then
 						{
 							My = My - 1;
@@ -1691,7 +1701,7 @@ SDL_KEYDOWN:
 					g_mFace = 1;
 					g_mStep = g_mStep + 1;
 					if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
-					if GoThrouht(Mx, My + 1) == true
+					if GoThrough(Mx, My + 1) == true
 						then
 						{
 							My = My + 1;
@@ -1707,7 +1717,7 @@ SDL_KEYDOWN:
 					g_mFace = 0;
 					g_mStep = g_mStep + 1;
 					if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
-					if GoThrouht(Mx - 1, My) == true
+					if GoThrough(Mx - 1, My) == true
 						then
 						{
 							Mx = Mx - 1;
@@ -1723,7 +1733,7 @@ SDL_KEYDOWN:
 					g_mFace = 3;
 					g_mStep = g_mStep + 1;
 					if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
-					if GoThrouht(Mx + 1, My) == true
+					if GoThrough(Mx + 1, My) == true
 						then
 						{
 							Mx = Mx + 1;
@@ -1743,10 +1753,10 @@ SDL_KEYUP:
 					MenuEsc;
 					walking = 0;
 				}
-				if ((event.key.keysym.sym == sdlk_return) and (event.key.keysym.modifier == kmod_lalt))
+				if ((event.key.keysym.sym == sdlk_return) && (event.key.keysym.modifier == kmod_lalt))
 				{
 					if (g_fullScreen)
-						g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_SWSURFACE or SDL_DOUBLEBUF or SDL_ANYFORMAT)
+						g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_SWSURFACE || SDL_DOUBLEBUF || SDL_ANYFORMAT)
 					else
 						g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_FULLSCREEN);
 					g_fullScreen = 1 - g_fullScreen;
@@ -1779,7 +1789,7 @@ Sdl_mousebuttonup:
 
 }
 
-//Check able or not to ertrance a scence.
+//Check able || not to ertrance a scence.
 //检测是否处于某入口, 并是否达成进入条件
 
 void CheckEntrance()
@@ -1813,21 +1823,20 @@ CanEntrance: boolean;
 		{
 			instruct_14;
 			g_curScence = g_entrances[x, y];
-			SFace = g_mFace;
+			g_sFace = g_mFace;
 			g_mFace = 3 - g_mFace;
 			g_sStep = 0;
 			Sx = RScence[g_curScence].EntranceX;
 			Sy = RScence[g_curScence].EntranceY;
 			//如达成条件, 进入场景并初始化场景坐标
 			InScence(0);
-			waitanykey;
+			WaitKey;
 		}
 		//instruct_13;
 	}
 
 }
 
-{
 	void UpdateScenceAmi()
 		var
 		now, next_time: uint32;
@@ -1843,13 +1852,13 @@ CanEntrance: boolean;
 			{
 				LockScence=true;
 				for i=0 to 199 do
-					if (g_scenceEventData[g_curScence, [i,6]<>g_scenceEventData[g_curScence, [i,7])
+					if (g_curScenceEventData[ [i,6]<>g_curScenceEventData[ [i,7])
 					{
-						if ((g_scenceEventData[g_curScence, [i,5]<5498) or (g_scenceEventData[g_curScence, [i,5]>5692))
+						if ((g_curScenceEventData[ [i,5]<5498) || (g_curScenceEventData[ [i,5]>5692))
 						{
-							g_scenceEventData[g_curScence, [i,5]=g_scenceEventData[g_curScence, [i,5]+2;
-							if (g_scenceEventData[g_curScence, [i,5]>g_scenceEventData[g_curScence, [i,6]) g_scenceEventData[g_curScence, [i,5]=g_scenceEventData[g_curScence, [i,7];
-							updatescence(g_scenceEventData[g_curScence, [i,10],g_scenceEventData[g_curScence, [i,9]);
+							g_curScenceEventData[ [i,5]=g_curScenceEventData[ [i,5]+2;
+							if (g_curScenceEventData[ [i,5]>g_curScenceEventData[ [i,6]) g_curScenceEventData[ [i,5]=g_curScenceEventData[ [i,7];
+							updatescence(g_curScenceEventData[ [i,10],g_curScenceEventData[ [i,9]);
 						}
 					}
 				//initialscence;
@@ -1866,314 +1875,266 @@ CanEntrance: boolean;
 void InGame(bool start)
 {
 	if (start) {
-		InScence(BEGIN_SCENCE, TRUE);
+		InScence(SCENCE_HOME, TRUE);
 	}
 }
 
 //Walk in a scence, the returned value is the scence number when you exit. If it is -1.
 //InScence(1) means the new game.
 //在内场景行走, 如参数为1表示新游戏
-int InScence(int index, bool start)
+int InScence(int scence, bool start)
 {
 	//UpDate=SDL_CreateThread(@UpdateScenceAmi, NULL);
 	//LockScence=false;
-	//next_time = SDL_GetTicks();
+	int ret = 0;
 	//walking = 0;
 	//just = 0;
-	//g_curEvent = -1;
 	if ((g_scenceSurface = SDL_CreateRGBSurface(SDL_HWSURFACE, SCENCE_PIC_WIDTH, SCENCE_PIC_HEIGHT,
 					32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x00000000))) {
+		uint32 next_time = SDL_GetTicks();
+
+		g_curEvent = EVENT_NOTHING;
 		g_inGame = EmInGameScence;
-		g_curScence = index;
+		g_curScence = scence;
+		g_sFace = g_mFace;
 
 		char smpFilename[PATH_MAX];
 		char sdxFilename[PATH_MAX];
-		sprintf(smpFilename, "smp%03d", index);
-		sprintf(sdxFilename, "sdx%03d", index);
+		sprintf(smpFilename, "smp%03d", scence);
+		sprintf(sdxFilename, "sdx%03d", scence);
 		if ((g_scencePicBuff = LoadFile(smpFilename, NULL, 0)) && (g_scenceIdxBuff = LoadFile(sdxFilename, NULL, 0))) {
 
-		InitialScence(index);
+			InitialScence(scence);
 
-		if (start) {
-			g_sx = BEGIN_SX;
-			g_sy = BEGIN_SY;
-			g_ex = g_sx;
-			g_ey = g_sy;
-			g_curEvent = -1;
-			DrawScence(0, 0);
-			g_curEvent = 0;
-			UpdateScreen();
-			//Callevent(BEGIN_EVENT);
-			g_curEvent = -1;
-		}
-		/*
+			//改变音乐
+			if (g_roleData.scences[scence].entranceMusic >= 0) {
+				StopXMI();
+				PlayXMI(g_roleData.scences[scence].entranceMusic, -1);
+			}
 
-		   Drawscence;
-		   ShowScenceName(g_curScence);
-		//是否有第3类事件位于场景入口
-		CheckEvent3;
+			if (start) {
+				g_sx = GAME_START_SX;
+				g_sy = GAME_START_SY;
+				g_ex = g_sx;
+				g_ey = g_sy;
+				g_curEvent = EVENT_GAME_START;
+				DrawScence();
+				//Callevent(EVENT_GAME_START);
+				g_curEvent = EVENT_NOTHING;
+			}
 
-		while (SDL_PollEvent(@event) >= 0) do
-		{
-		if (g_inGame >= 3)
-		{
-		break;
-		}
-		if (sx > 63) sx = 63;
-		if (sy > 63) sy = 63;
-		if (sx < 0) sx = 0;
-		if (sy < 0) sy = 0;
-		//场景内动态效果
-		now = sdl_getticks;
-		//next_time=sdl_getticks;
-		if (integer(now - next_time) > 0)
-		{
-		for i = 0 to 199 do
-		if ((g_scenceEventData[g_curScence, i, 8] > 0) or (g_scenceEventData[g_curScence, i, 7] < g_scenceEventData[g_curScence, i, 6]))
-		{
-		//屏蔽了旗子的动态效果, 因贴图太大不好处理
-		if ((g_scenceEventData[g_curScence, i, 5] < 5498) or (g_scenceEventData[g_curScence, i, 5] > 5692))
-		{
-		g_scenceEventData[g_curScence, i, 5] = g_scenceEventData[g_curScence, i, 5] + 2;
-		if (g_scenceEventData[g_curScence, i, 5] > g_scenceEventData[g_curScence, i, 6]) g_scenceEventData[g_curScence, i, 5] = g_scenceEventData[g_curScence, i, 7];
-		updatescence(g_scenceEventData[g_curScence, i, 10], g_scenceEventData[g_curScence, i, 9]);
-		}
-		}
-		next_time = now + 200;
-		DrawScence;
-		SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-		}
+			DrawScence();
+			ShowScenceName(g_curScence);
 
-		//检查是否位于出口, 如是则退出
-		if (((sx == RScence[g_curScence].ExitX[0]) and (sy == RScence[g_curScence].ExitY[0]))
-		or ((sx == RScence[g_curScence].ExitX[1]) and (sy == RScence[g_curScence].ExitY[1]))
-		or ((sx == RScence[g_curScence].ExitX[2]) and (sy == RScence[g_curScence].ExitY[2]))) then
-		{
-		g_inGame = 0;
-		result = -1;
-		break;
-		}
-		//检查是否位于跳转口, 如是则重新初始化场景
-		if (((sx == RScence[g_curScence].JumpX1) and (sy == RScence[g_curScence].JumpY1)) and (RScence[g_curScence].JumpScence >= 0))
-		{
-		instruct_14;
-		PreScence = g_curScence;
-		g_curScence = Rscence[g_curScence].JumpScence;
-		if (RScence[PreScence].MainEntranceX1 <> 0)
-		{
-		Sx = RScence[g_curScence].EntranceX;
-		Sy = RScence[g_curScence].EntranceY;
-		}
-		else {
-		Sx = RScence[g_curScence].JumpX2;
-		Sy = RScence[g_curScence].JumpY2;
-		}
-		{if (Sx == 0)
-		{
-		Sx = RScence[g_curScence].JumpX2;
-		Sy = RScence[g_curScence].JumpY2;
-		}
-		if (Sx == 0)
-		{
-		Sx = RScence[g_curScence].EntranceX;
-		Sy = RScence[g_curScence].EntranceY;
-	}}
+			while (TRUE) {
+				DrawScence();
+				//是否有第3类事件位于场景入口
+				//CheckEvent3;
+				int key = PollKey();
+				if (g_inGame != EmInGameScence) {
+					break;
+				}
 
-	InitialScence;
-	Drawscence;
-	ShowScenceName(g_curScence);
-	CheckEvent3;
+				/*//场景内动态效果
+				  now = sdl_getticks;
+				//next_time=sdl_getticks;
+				if (integer(now - next_time) > 0)
+				{
+				for i = 0 to 199 do
+				if ((g_curScenceEventData[ i, 8] > 0) || (g_curScenceEventData[ i, 7] < g_curScenceEventData[ i, 6]))
+				{
+				//屏蔽了旗子的动态效果, 因贴图太大不好处理
+				if ((g_curScenceEventData[ i, 5] < 5498) || (g_curScenceEventData[ i, 5] > 5692))
+				{
+				g_curScenceEventData[ i, 5] = g_curScenceEventData[ i, 5] + 2;
+				if (g_curScenceEventData[ i, 5] > g_curScenceEventData[ i, 6]) g_curScenceEventData[ i, 5] = g_curScenceEventData[ i, 7];
+				updatescence(g_curScenceEventData[ i, 10], g_curScenceEventData[ i, 9]);
+				}
+				}
+				next_time = now + 200;
+				DrawScence;
+				SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
+				}
+				*/
 
-	}
+				/*
+				//检查是否位于出口, 如是则退出
+				if (((sx == RScence[g_curScence].ExitX[0]) && (sy == RScence[g_curScence].ExitY[0]))
+				|| ((sx == RScence[g_curScence].ExitX[1]) && (sy == RScence[g_curScence].ExitY[1]))
+				|| ((sx == RScence[g_curScence].ExitX[2]) && (sy == RScence[g_curScence].ExitY[2]))) {
+				g_inGame = 0;
+				ret = -1;
+				break;
+				}
 
-	//是否处于行走状态, 参考Walk
-	if (walking == 1)
-	{
-		sdl_getmousestate(x, y);
-		if ((x < SCREEN_CENTER_X) and (y < SCREEN_CENTER_Y)) Sface = 2;
-		if ((x > SCREEN_CENTER_X) and (y < SCREEN_CENTER_Y)) Sface = 0;
-		if ((x < SCREEN_CENTER_X) and (y > SCREEN_CENTER_Y)) Sface = 3;
-		if ((x > SCREEN_CENTER_X) and (y > SCREEN_CENTER_Y)) Sface = 1;
-		Sx1 = Sx;
-		Sy1 = Sy;
-		switch (Sface) {
+				//检查是否位于跳转口, 如是则重新初始化场景
+				if (((sx == RScence[g_curScence].JumpX1) && (sy == RScence[g_curScence].JumpY1)) && (RScence[g_curScence].JumpScence >= 0)) {
+				instruct_14;
+				PreScence = g_curScence;
+				g_curScence = Rscence[g_curScence].JumpScence;
+				if (RScence[PreScence].MainEntranceX1 <> 0) {
+				Sx = RScence[g_curScence].EntranceX;
+				Sy = RScence[g_curScence].EntranceY;
+				} else {
+				Sx = RScence[g_curScence].JumpX2;
+				Sy = RScence[g_curScence].JumpY2;
+				}
+
+				if (Sx == 0) {
+				Sx = RScence[g_curScence].JumpX2;
+				Sy = RScence[g_curScence].JumpY2;
+				}
+
+				if (Sx == 0)
+				{
+				Sx = RScence[g_curScence].EntranceX;
+				Sy = RScence[g_curScence].EntranceY;
+				}
+
+				InitialScence;
+				Drawscence;
+				ShowScenceName(g_curScence);
+				CheckEvent3;
+
+				}
+				*/
+
+				//是否处于行走状态, 参考Walk
+				/*
+				   if (walking == 1)
+				   {
+				   sdl_getmousestate(x, y);
+				   if ((x < SCREEN_CENTER_X) && (y < SCREEN_CENTER_Y)) g_sFace = 2;
+				   if ((x > SCREEN_CENTER_X) && (y < SCREEN_CENTER_Y)) g_sFace = 0;
+				   if ((x < SCREEN_CENTER_X) && (y > SCREEN_CENTER_Y)) g_sFace = 3;
+				   if ((x > SCREEN_CENTER_X) && (y > SCREEN_CENTER_Y)) g_sFace = 1;
+				   Sx1 = Sx;
+				   Sy1 = Sy;
+				   switch (g_sFace) {
 0: Sx1 = Sx1 - 1;
+oooo
 1: Sy1 = Sy1 + 1;
 2: Sy1 = Sy1 - 1;
 3: Sx1 = Sx1 + 1;
-		}
-		g_sStep = g_sStep + 1;
-		if (g_sStep == 8) g_sStep = 0;
-		if (GoThroughScence(Sx1, Sy1) == true)
-		{
-			Sx = Sx1;
-			Sy = Sy1;
+}
+g_sStep = g_sStep + 1;
+if (g_sStep == 8) g_sStep = 0;
+if (GoThroughScence(Sx1, Sy1) == true)
+{
+Sx = Sx1;
+Sy = Sy1;
 
-		}
-		DrawScence;
-		SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-		CheckEvent3;
-	}
+}
+DrawScence;
+SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
+CheckEvent3;
+}
+*/
 
-	switch (event.type) {
-SDL_QUITEV:
-		if (messagedlg("Are you sure to quit?", mtConfirmation, [mbOk, mbCancel], 0) == idOK) Quit;
-SDL_KEYUP:
+switch (key) {
+	case SDLK_ESCAPE:
+		//*********MenuEsc;
+		//walking = 0;
+		break;
+		/*
+		//检查是否按下Left Alt+Enter, 是则切换全屏/窗口(似乎并不经常有效)
+		if ((event.key.keysym.sym == sdlk_return) && (event.key.keysym.modifier == kmod_lalt))
 		{
-			if ((event.key.keysym.sym == sdlk_escape))
-			{
-				MenuEsc;
-				walking = 0;
-			}
-			//检查是否按下Left Alt+Enter, 是则切换全屏/窗口(似乎并不经常有效)
-			if ((event.key.keysym.sym == sdlk_return) and (event.key.keysym.modifier == kmod_lalt))
-			{
-				if (g_fullScreen == 1)
-					g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_SWSURFACE or SDL_DOUBLEBUF or SDL_ANYFORMAT)
-				else
-					g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_FULLSCREEN);
-				g_fullScreen = 1 - g_fullScreen;
-			}
-			//按下回车或空格, 检查面对方向是否有第1类事件
-			if ((event.key.keysym.sym == sdlk_return) or (event.key.keysym.sym == sdlk_space))
-			{
-				x = Sx;
-				y = Sy;
-				switch (SFace) {
+		if (g_fullScreen == 1)
+		g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_SWSURFACE || SDL_DOUBLEBUF || SDL_ANYFORMAT)
+		else
+		g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_FULLSCREEN);
+		g_fullScreen = 1 - g_fullScreen;
+		}
+		*/
+		//按下回车或空格, 检查面对方向是否有第1类事件
+	case SDLK_RETURN:
+	case SDLK_SPACE:
+		/*
+		   x = Sx;
+		   y = Sy;
+		   switch (g_sFace) {
 0: x = x - 1;
 1: y = y + 1;
 2: y = y - 1;
 3: x = x + 1;
-				}
-				//如有则调用事件
-				if (g_curScenceData[ 3, x, y] >= 0)
-				{
-					g_curEvent = g_curScenceData[ 3, x, y];
-					walking = 0;
-					if (g_scenceEventData[g_curScence, g_curEvent, 2] >= 0)
-						callevent(g_scenceEventData[g_curScence, g_curScenceData[ 3, x, y], 2]);
-				}
-				g_curEvent = -1;
-			}
-
-		}
-SDL_KEYDOWN:
-		{
-			if ((event.key.keysym.sym == sdlk_left))
-			{
-				SFace = 2;
-				g_sStep = g_sStep + 1;
-				if (g_sStep == 8) g_sStep = 0;
-				if GoThroughScence(Sx, Sy - 1) == true
-					then
-					{
-						Sy = Sy - 1;
-					}
-				DrawScence;
-				SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-				CheckEvent3;
-			}
-			if ((event.key.keysym.sym == sdlk_right))
-			{
-				SFace = 1;
-				g_sStep = g_sStep + 1;
-				if (g_sStep == 8) g_sStep = 0;
-				if GoThroughScence(Sx, Sy + 1) == true
-					then
-					{
-						Sy = Sy + 1;
-					}
-				DrawScence;
-				SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-				CheckEvent3;
-			}
-			if ((event.key.keysym.sym == sdlk_up))
-			{
-				SFace = 0;
-				g_sStep = g_sStep + 1;
-				if (g_sStep == 8) g_sStep = 0;
-				if GoThroughScence(Sx - 1, Sy) == true
-					then
-					{
-						Sx = Sx - 1;
-					}
-				DrawScence;
-				SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-				CheckEvent3;
-			}
-			if ((event.key.keysym.sym == sdlk_down))
-			{
-				SFace = 3;
-				g_sStep = g_sStep + 1;
-				if (g_sStep == 8) g_sStep = 0;
-				if (GoThroughScence(Sx + 1, Sy) == true)
-				{
-					Sx = Sx + 1;
-				}
-				DrawScence;
-				SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-				CheckEvent3;
-			}
-		}
-Sdl_mousebuttondown:
-		{
-			if (event.button.button == sdl_button_left)
-			{
-				walking = 1;
-			}
-		}
-Sdl_mousebuttonup:
-		{
-			if (event.button.button == sdl_button_right) menuesc;
-			if (event.button.button == sdl_button_left)
-			{
-				walking = 0;
-			}
-		}
+}
+	//如有则调用事件
+	if (g_curScenceData[ 3, x, y] >= 0) {
+	g_curEvent = g_curScenceData[ 3, x, y];
+	walking = 0;
+	if (g_curEventData[2] >= 0) callevent(g_curScenceEventData[ g_curScenceData[ 3, x, y], 2]);
 	}
-	sdl_delay(10);
-	event.key.keysym.sym = 0;
+	g_curEvent = -1;
 
+*/
+	break;
+	case SDLK_UP:
+	g_sFace = 0;
+	if (++g_sStep >= WALK_PIC_NUM) g_sStep = 0;
+	if (GoThroughScence(g_sx - 1, g_sy)) {
+		g_sx--;
 	}
 
-	instruct_14; //黑屏
+break;
+case SDLK_RIGHT:
+g_sFace = 1;
+if (++g_sStep >= WALK_PIC_NUM) g_sStep = 0;
+if (GoThroughScence(g_sx, g_sy + 1)) {
+	g_sy++;
+}
 
-	ReDraw;
-	SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	if (Rscence[g_curScence].ExitMusic >= 0)
-	{
-		stopmp3;
-		playmp3(Rscence[g_curScence].ExitMusic, -1);
-	}
-	*/
-			free(g_scenceIdxBuff);
-			free(g_scencePicBuff);
-		}
+break;
+case SDLK_LEFT:
+g_sFace = 2;
+if (++g_sStep >= WALK_PIC_NUM) g_sStep = 0;
+if (GoThroughScence(g_sx, g_sy - 1)) {
+	g_sy--;
+}
 
-		SDL_FreeSurface(g_scenceSurface);
-	}
+break;
+case SDLK_DOWN:
+g_sFace = 3;
+if (++g_sStep >= WALK_PIC_NUM) g_sStep = 0;
+if (GoThroughScence(g_sx + 1, g_sy)) {
+	g_sx++;
+}
+
+break;
+}
+}
+/*
+
+   instruct_14; //黑屏
+
+   ReDraw;
+   SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
+   if (Rscence[g_curScence].ExitMusic >= 0)
+   {
+   stopmp3;
+   playmp3(Rscence[g_curScence].ExitMusic, -1);
+   }
+   */
+free(g_scenceIdxBuff);
+free(g_scencePicBuff);
+}
+
+SDL_FreeSurface(g_scenceSurface);
+}
+return ret;
+}
+
+void ShowScenceName(int scence)
+{
+	//UpdateScence();
+	//显示场景名
+	DrawFrameText(Big5ToUtf8(g_roleData.scences[scence].name), TEXT_NORMAL_COLOR, TEXT_COLOR);
+	UpdateScreen();
+
+	WaitKey();
 }
 
 #if 0
-void int ShowScenceName(snum = 0)()
-	var
-	scencename: widestring;
-{
-	SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	//显示场景名
-	scencename = big5toUTF8(@rscence[snum].Name);
-	drawtextwithrect(@scencename[1], 320 - length(pchar(@rscence[snum].Name)) * 5 + 7, 100, length(pchar(@rscence[snum].Name)) * 10 + 6, COLOR(7), COLOR(5));
-	//waitanykey;
-	//改变音乐
-	if (Rscence[snum].EntranceMusic >= 0)
-	{
-		stopmp3;
-		playmp3(Rscence[snum].EntranceMusic, -1);
-	}
-	SDL_Delay(500);
-
-}
-
 //检查是否有第3类事件, 如有则调用
 
 void CheckEvent3()
@@ -2181,11 +2142,11 @@ void CheckEvent3()
 	int enum = 0;
 {
 	enum = g_curScenceData[ 3, Sx, Sy];
-	if ((g_scenceEventData[g_curScence, enum, 4] > 0) and (enum >= 0))
+	if ((g_curScenceEventData[ enum, 4] > 0) && (enum >= 0))
 	{
 		g_curEvent = enum;
-		waitanykey;
-		callevent(g_scenceEventData[g_curScence, enum, 4]);
+		WaitKey;
+		callevent(g_curScenceEventData[ enum, 4]);
 		g_curEvent = -1;
 	}
 }
@@ -2227,14 +2188,14 @@ SDL_KEYUP:
 					showcommonMenu(x, y, w, max, menu);
 					SDL_UpdateRect(g_screenSurface, x, y, w + 1, max * 22 + 29);
 				}
-				if (((event.key.keysym.sym == sdlk_escape)) and (g_inGame <= 2))
+				if (((event.key.keysym.sym == sdlk_escape)) && (g_inGame <= 2))
 				{
 					result = -1;
 					ReDraw;
 					SDL_UpdateRect(g_screenSurface, x, y, w + 1, max * 22 + 29);
 					break;
 				}
-				if ((event.key.keysym.sym == sdlk_return) or (event.key.keysym.sym == sdlk_space))
+				if ((event.key.keysym.sym == sdlk_return) || (event.key.keysym.sym == sdlk_space))
 				{
 					result = menu;
 					Redraw;
@@ -2244,7 +2205,7 @@ SDL_KEYUP:
 			}
 SDL_MOUSEBUTTONUP:
 			{
-				if ((event.button.button == sdl_button_right) and (g_inGame <= 2))
+				if ((event.button.button == sdl_button_right) && (g_inGame <= 2))
 				{
 					result = -1;
 					ReDraw;
@@ -2261,7 +2222,7 @@ SDL_MOUSEBUTTONUP:
 			}
 SDL_MOUSEMOTION:
 			{
-				if ((event.button.x >= x) and (event.button.x < x + w) and (event.button.y > y) and (event.button.y < y + max * 22 + 29))
+				if ((event.button.x >= x) && (event.button.x < x + w) && (event.button.y > y) && (event.button.y < y + max * 22 + 29))
 				{
 					menup = menu;
 					menu = (event.button.y - y - 2) / 22;
@@ -2392,14 +2353,14 @@ SDL_KEYUP:
 					showcommonscrollMenu(x, y, w, max, maxshow, menu, menutop);
 					SDL_UpdateRect(g_screenSurface, x, y, w + 1, maxshow * 22 + 29);
 				}
-				if (((event.key.keysym.sym == sdlk_escape)) and (g_inGame <= 2))
+				if (((event.key.keysym.sym == sdlk_escape)) && (g_inGame <= 2))
 				{
 					result = -1;
 					ReDraw;
 					SDL_UpdateRect(g_screenSurface, x, y, w + 1, maxshow * 22 + 29);
 					break;
 				}
-				if ((event.key.keysym.sym == sdlk_return) or (event.key.keysym.sym == sdlk_space))
+				if ((event.key.keysym.sym == sdlk_return) || (event.key.keysym.sym == sdlk_space))
 				{
 					result = menu;
 					Redraw;
@@ -2409,7 +2370,7 @@ SDL_KEYUP:
 			}
 SDL_MOUSEBUTTONUP:
 			{
-				if ((event.button.button == sdl_button_right) and (g_inGame <= 2))
+				if ((event.button.button == sdl_button_right) && (g_inGame <= 2))
 				{
 					result = -1;
 					ReDraw;
@@ -2456,7 +2417,7 @@ SDL_MOUSEBUTTONUP:
 			}
 SDL_MOUSEMOTION:
 			{
-				if ((event.button.x >= x) and (event.button.x < x + w) and (event.button.y > y) and (event.button.y < y + max * 22 + 29))
+				if ((event.button.x >= x) && (event.button.x < x + w) && (event.button.y > y) && (event.button.y < y + max * 22 + 29))
 				{
 					menup = menu;
 					menu = (event.button.y - y - 2) / 22 + menutop;
@@ -2524,20 +2485,20 @@ SDL_QUITEV:
 			if (messagedlg("Are you sure to quit?", mtConfirmation, [mbOk, mbCancel], 0) == idOK) Quit;
 SDL_KEYUP:
 			{
-				if ((event.key.keysym.sym == sdlk_left) or (event.key.keysym.sym == sdlk_right))
+				if ((event.key.keysym.sym == sdlk_left) || (event.key.keysym.sym == sdlk_right))
 				{
 					if (menu == 1) menu = 0 else menu = 1;
 					showcommonMenu2(x, y, w, menu);
 					SDL_UpdateRect(g_screenSurface, x, y, w + 1, 29);
 				}
-				if (((event.key.keysym.sym == sdlk_escape)) and (g_inGame <= 2))
+				if (((event.key.keysym.sym == sdlk_escape)) && (g_inGame <= 2))
 				{
 					result = -1;
 					ReDraw;
 					SDL_UpdateRect(g_screenSurface, x, y, w + 1, 29);
 					break;
 				}
-				if ((event.key.keysym.sym == sdlk_return) or (event.key.keysym.sym == sdlk_space))
+				if ((event.key.keysym.sym == sdlk_return) || (event.key.keysym.sym == sdlk_space))
 				{
 					result = menu;
 					Redraw;
@@ -2547,7 +2508,7 @@ SDL_KEYUP:
 			}
 SDL_MOUSEBUTTONUP:
 			{
-				if ((event.button.button == sdl_button_right) and (g_inGame <= 2))
+				if ((event.button.button == sdl_button_right) && (g_inGame <= 2))
 				{
 					result = -1;
 					ReDraw;
@@ -2564,7 +2525,7 @@ SDL_MOUSEBUTTONUP:
 			}
 SDL_MOUSEMOTION:
 			{
-				if ((event.button.x >= x) and (event.button.x < x + w) and (event.button.y > y) and (event.button.y < y + 29))
+				if ((event.button.x >= x) && (event.button.x < x + w) && (event.button.y > y) && (event.button.y < y + 29))
 				{
 					menup = menu;
 					menu = (event.button.x - x - 2) / 50;
@@ -2677,7 +2638,7 @@ SDL_KEYUP:
 					SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 					break;
 				}
-				if ((event.key.keysym.sym == sdlk_return) or (event.key.keysym.sym == sdlk_space))
+				if ((event.key.keysym.sym == sdlk_return) || (event.key.keysym.sym == sdlk_space))
 				{
 					switch (menu) {
 0: MenuMedcine;
@@ -2700,7 +2661,7 @@ SDL_MOUSEBUTTONUP:
 				}
 				if (event.button.button == sdl_button_left)
 				{
-					if ((event.button.y > 32) and (event.button.y < 32 + 22 * (6 - g_inGame * 2)) and (event.button.x > 27) and (event.button.x < 27 + 46))
+					if ((event.button.y > 32) && (event.button.y < 32 + 22 * (6 - g_inGame * 2)) && (event.button.x > 27) && (event.button.x < 27 + 46))
 					{
 						showmenu(menu);
 						switch (menu) {
@@ -2717,7 +2678,7 @@ SDL_MOUSEBUTTONUP:
 			}
 SDL_MOUSEMOTION:
 			{
-				if ((event.button.y > 32) and (event.button.y < 32 + 22 * 6) and (event.button.x > 27) and (event.button.x < 27 + 46))
+				if ((event.button.y > 32) && (event.button.y < 32 + 22 * 6) && (event.button.x > 27) && (event.button.x < 27 + 46))
 				{
 					menup = menu;
 					menu = (event.button.y - 32) / 22;
@@ -2790,7 +2751,7 @@ str: widestring;
 		if (menu >= 0)
 			EffectMedcine(role1, role2);
 	}
-	//waitanykey;
+	//WaitKey;
 	redraw;
 	//SDL_UpdateRect(g_screenSurface,0,0,g_screenSurface.w,g_screenSurface.h);
 
@@ -2820,7 +2781,7 @@ str: widestring;
 		if (menu >= 0)
 			EffectMedPoision(role1, role2);
 	}
-	//waitanykey;
+	//WaitKey;
 	redraw;
 	//showmenu(1);
 	//SDL_UpdateRect(g_screenSurface,0,0,g_screenSurface.w,g_screenSurface.h);
@@ -2857,11 +2818,11 @@ int max = 0;
 			max = 5;
 			setlength(menustring, max + 1);
 			menustring[0] = " 全部物品";
-			menustring[1] = " 劇情物品';
+			menustring[1] = " 劇情物品";
 			menustring[2] = " 神兵寶甲";
 			menustring[3] = " 武功秘笈";
 			menustring[4] = " 靈丹妙藥";
-			menustring[5] = " 傷人暗器';
+			menustring[5] = " 傷人暗器";
 			menu = commonmenu(80, 30, 87, max);
 			if (menu == 0) menu = 101;
 			menu = menu - 1;
@@ -2871,7 +2832,7 @@ int max = 0;
 			max = 1;
 			setlength(menustring, max + 1);
 			menustring[0] = " 靈丹妙藥";
-			menustring[1] = " 傷人暗器';
+			menustring[1] = " 傷人暗器";
 			menu = commonmenu(150, 150, 87, max);
 			if (menu >= 0) menu = menu + 3;
 		}
@@ -2919,7 +2880,7 @@ SDL_KEYUP:
 						//y = y + row;
 						atlu = atlu + col * row;
 						if (y < 0) y = 0;
-						if ((ItemList[atlu + col * row] < 0) and (iamount > col * row))
+						if ((ItemList[atlu + col * row] < 0) && (iamount > col * row))
 						{
 							y = y - (iamount - atlu) / col - 1 + row;
 							atlu = (iamount / col - row + 1) * col;
@@ -2963,11 +2924,11 @@ SDL_KEYUP:
 						SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 						break;
 					}
-					if ((event.key.keysym.sym == sdlk_return) or (event.key.keysym.sym == sdlk_space))
+					if ((event.key.keysym.sym == sdlk_return) || (event.key.keysym.sym == sdlk_space))
 					{
 						ReDraw;
 						CurItem = RItemlist[itemlist[(y * col + x + atlu)]].Number;
-						if ((g_inGame <> 2) and (CurItem >= 0) and (itemlist[(y * col + x + atlu)] >= 0))
+						if ((g_inGame <> 2) && (CurItem >= 0) && (itemlist[(y * col + x + atlu)] >= 0))
 							UseItem(CurItem);
 						//ShowMenu(2);
 						result = true;
@@ -2989,7 +2950,7 @@ SDL_MOUSEBUTTONUP:
 					{
 						ReDraw;
 						CurItem = RItemlist[itemlist[(y * col + x + atlu)]].Number;
-						if ((g_inGame <> 2) and (CurItem >= 0) and (itemlist[(y * col + x + atlu)] >= 0))
+						if ((g_inGame <> 2) && (CurItem >= 0) && (itemlist[(y * col + x + atlu)] >= 0))
 							UseItem(CurItem);
 						//ShowMenu(2);
 						result = true;
@@ -3022,7 +2983,7 @@ SDL_MOUSEBUTTONUP:
 				}
 SDL_MOUSEMOTION:
 				{
-					if ((event.button.x >= 110) and (event.button.x < 496) and (event.button.y > 90) and (event.button.y < 308))
+					if ((event.button.x >= 110) && (event.button.x < 496) && (event.button.y > 90) && (event.button.y < 308))
 					{
 						xp = x;
 						yp = y;
@@ -3033,20 +2994,20 @@ SDL_MOUSEMOTION:
 						if (x < 0) x = 0;
 						if (y < 0) y = 0;
 						//鼠标移动时仅在x, y发生变化时才重画
-						if ((x <> xp) or (y <> yp))
+						if ((x <> xp) || (y <> yp))
 						{
 							showMenuItem(row, col, x, y, atlu);
 							SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 						}
 					}
-					if ((event.button.x >= 110) and (event.button.x < 496) and (event.button.y > 308))
+					if ((event.button.x >= 110) && (event.button.x < 496) && (event.button.y > 308))
 					{
 						//atlu = atlu+col;
 						if ((ItemList[atlu + col * 5] >= 0)) atlu = atlu + col;
 						showMenuItem(row, col, x, y, atlu);
 						SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 					}
-					if ((event.button.x >= 110) and (event.button.x < 496) and (event.button.y < 90))
+					if ((event.button.x >= 110) && (event.button.x < 496) && (event.button.y < 90))
 					{
 						if (atlu > 0) atlu = atlu - col;
 						showMenuItem(row, col, x, y, atlu);
@@ -3075,7 +3036,7 @@ int p = 0;
 	{
 		if ((RItemlist[i].Number >= 0))
 		{
-			if ((Ritem[RItemlist[i].Number].ItemType == ItemType) or (ItemType == 100))
+			if ((Ritem[RItemlist[i].Number].ItemType == ItemType) || (ItemType == 100))
 			{
 				Itemlist[p] = i;
 				p = p + 1;
@@ -3105,23 +3066,23 @@ words3: array[0..12] of widestring;
 p2: array[0..22] of integer;
 p3: array[0..12] of integer;
 {
-	words[0] = " 劇情物品';
+	words[0] = " 劇情物品";
 	words[1] = " 神兵寶甲";
 	words[2] = " 武功秘笈";
 	words[3] = " 靈丹妙藥";
-	words[4] = " 傷人暗器';
+	words[4] = " 傷人暗器";
 	words2[0] = " 生命"; words2[1] = " 生命"; words2[2] = " 中毒";
-	words2[3] = " 體力"; words2[4] = " 內力'; words2[5] = " 內力';
-	words2[6] = " 內力'; words2[7] = " 攻擊'; words2[8] = " 輕功";
+	words2[3] = " 體力"; words2[4] = " 內力"; words2[5] = " 內力";
+	words2[6] = " 內力"; words2[7] = " 攻擊"; words2[8] = " 輕功";
 	words2[9] = " 防禦"; words2[10] = " 醫療"; words2[11] = " 用毒";
 	words2[12] = " 解毒"; words2[13] = " 抗毒"; words2[14] = " 拳掌";
-	words2[15] = " 御劍'; words2[16] = " 耍刀"; words2[17] = " 特殊";
+	words2[15] = " 御劍"; words2[16] = " 耍刀"; words2[17] = " 特殊";
 	words2[18] = " 暗器"; words2[19] = " 武學"; words2[20] = " 品德";
 	words2[21] = " 左右"; words2[22] = " 帶毒";
 
-	words3[0] = " 內力'; words3[1] = " 內力'; words3[2] = " 攻擊';
+	words3[0] = " 內力"; words3[1] = " 內力"; words3[2] = " 攻擊";
 	words3[3] = " 輕功"; words3[4] = " 用毒"; words3[5] = " 醫療";
-	words3[6] = " 解毒"; words3[7] = " 拳掌"; words3[8] = " 御劍';
+	words3[6] = " 解毒"; words3[7] = " 拳掌"; words3[8] = " 御劍";
 	words3[9] = " 耍刀"; words3[10] = " 特殊"; words3[11] = " 暗器";
 	words3[12] = " 資質";
 
@@ -3136,7 +3097,7 @@ p3: array[0..12] of integer;
 		for i2 = 0 to col - 1 do
 		{
 			listnum = ItemList[i1 * col + i2 + atlu];
-			if ((RItemlist[listnum].Number >= 0) and (listnum < MAX_ITEM_NUM) and (listnum >= 0))
+			if ((RItemlist[listnum].Number >= 0) && (listnum < MAX_ITEM_NUM) && (listnum >= 0))
 			{
 				DrawMapPic(ITEM_BEGIN_PIC + RItemlist[listnum].Number, i2 * 42 + 115, i1 * 42 + 95);
 			}
@@ -3144,7 +3105,7 @@ p3: array[0..12] of integer;
 	listnum = itemlist[y * col + x + atlu];
 	item = RItemlist[listnum].Number;
 
-	if ((RItemlist[listnum].Amount > 0) and (listnum < MAX_ITEM_NUM) and (listnum >= 0))
+	if ((RItemlist[listnum].Amount > 0) && (listnum < MAX_ITEM_NUM) && (listnum >= 0))
 	{
 		str = format("%5d", [RItemlist[listnum].Amount]);
 		DrawAlphnumText(g_screenSurface, @str[1], 431, 32, COLOR(0x64));
@@ -3174,13 +3135,13 @@ p3: array[0..12] of integer;
 	}
 
 
-	if ((item >= 0) and (ritem[item].ItemType > 0))
+	if ((item >= 0) && (ritem[item].ItemType > 0))
 	{
 		len2 = 0;
 		for i = 0 to 22 do
 		{
 			p2[i] = 0;
-			if ((ritem[item].Data[45 + i] <> 0) and (i <> 4))
+			if ((ritem[item].Data[45 + i] <> 0) && (i <> 4))
 			{
 				p2[i] = 1;
 				len2 = len2 + 1;
@@ -3196,13 +3157,13 @@ p3: array[0..12] of integer;
 		for i = 0 to 12 do
 		{
 			p3[i] = 0;
-			if ((ritem[item].Data[69 + i] <> 0) and (i <> 0))
+			if ((ritem[item].Data[69 + i] <> 0) && (i <> 0))
 			{
 				p3[i] = 1;
 				len3 = len3 + 1;
 			}
 		}
-		if ((ritem[item].NeedMPType in [0, 1]) and (ritem[item].ItemType <> 3))
+		if ((ritem[item].NeedMPType in [0, 1]) && (ritem[item].ItemType <> 3))
 		{
 			p3[0] = 1;
 			len3 = len3 + 1;
@@ -3294,7 +3255,7 @@ void int UseItem(inum = 0)()
 				{
 					x = Sx;
 					y = Sy;
-					switch (SFace) {
+					switch (g_sFace) {
 0: x = x - 1;
 1: y = y + 1;
 2: y = y - 1;
@@ -3304,8 +3265,8 @@ void int UseItem(inum = 0)()
 					if (g_curScenceData[ 3, x, y] >= 0)
 					{
 						g_curEvent = g_curScenceData[ 3, x, y];
-						if (g_scenceEventData[g_curScence, g_curScenceData[ 3, x, y], 3] >= 0)
-							callevent(g_scenceEventData[g_curScence, g_curScenceData[ 3, x, y], 3]);
+						if (g_curScenceEventData[ g_curScenceData[ 3, x, y], 3] >= 0)
+							callevent(g_curScenceEventData[ g_curScenceData[ 3, x, y], 3]);
 					}
 					g_curEvent = -1;
 				}
@@ -3325,7 +3286,7 @@ void int UseItem(inum = 0)()
 			}
 			if (menu == 1)
 			{
-				str = " 誰要裝備';
+				str = " 誰要裝備";
 				str1 = big5toUTF8(@Ritem[inum].Name);
 				drawtextwithrect(@str[1], 80, 30, length(str1) * 22 + 80, COLOR(0x23), COLOR(0x21));
 				drawshadowtext(@str1[1], 160, 32, COLOR(0x66), COLOR(0x64));
@@ -3335,7 +3296,7 @@ void int UseItem(inum = 0)()
 				{
 					rnum = Teamlist[menu];
 					p = Ritem[inum].EquipType;
-					if ((p < 0) or (p > 1)) p = 0;
+					if ((p < 0) || (p > 1)) p = 0;
 					if (canequip(rnum, inum))
 					{
 						if (Ritem[inum].User >= 0) Rrole[Ritem[inum].User].Equip[p] = -1;
@@ -3344,9 +3305,9 @@ void int UseItem(inum = 0)()
 						Ritem[inum].User = rnum;
 					} else
 					{
-						str = " 此人不適合裝備此物品';
+						str = " 此人不適合裝備此物品";
 						drawtextwithrect(@str[1], 80, 30, 205, COLOR(0x66), COLOR(0x64));
-						waitanykey;
+						WaitKey;
 						redraw;
 						//SDL_UpdateRect(g_screenSurface,0,0,g_screenSurface.w,g_screenSurface.h);
 					}
@@ -3387,7 +3348,7 @@ void int UseItem(inum = 0)()
 					{
 						str = " 此人不適合修煉此秘笈";
 						drawtextwithrect(@str[1], 80, 30, 205, COLOR(0x66), COLOR(0x64));
-						waitanykey;
+						WaitKey;
 						redraw;
 						//SDL_UpdateRect(g_screenSurface,0,0,g_screenSurface.w,g_screenSurface.h);
 					}
@@ -3411,7 +3372,7 @@ void int UseItem(inum = 0)()
 				redraw;
 				EatOneItem(rnum, inum);
 				instruct_32(inum, -1);
-				waitanykey;
+				WaitKey;
 			}
 		}
 4: //不处理暗器类物品
@@ -3449,18 +3410,18 @@ int r = 0;
 	if (sign(Ritem[inum].NeedAptitude) * Rrole[rnum].Aptitude < Ritem[inum].NeedAptitude) result = false;
 
 	//内力性质
-	if ((rrole[rnum].MPType < 2) and (Ritem[inum].NeedMPType < 2))
+	if ((rrole[rnum].MPType < 2) && (Ritem[inum].NeedMPType < 2))
 		if (rrole[rnum].MPType <> Ritem[inum].NeedMPType) result = false;
 
 	//如有专用人物, 前面的都作废
-	if ((Ritem[inum].OnlyPracRole >= 0) and (result == true))
+	if ((Ritem[inum].OnlyPracRole >= 0) && (result == true))
 		if ((Ritem[inum].OnlyPracRole == rnum)) result = true else result = false;
 
 	//如已有10种武功, 且物品也能练出武功, 则结果为假
 	r = 0;
 	for i = 0 to 9 do
 		if (Rrole[rnum].Magic[i] > 0) r = r + 1;
-	if ((r >= 10) and (ritem[inum].Magic > 0)) result = false;
+	if ((r >= 10) && (ritem[inum].Magic > 0)) result = false;
 
 	for i = 0 to 9 do
 		if (Rrole[rnum].Magic[i] == ritem[inum].Magic)
@@ -3483,7 +3444,7 @@ void MenuStatus()
 	if (menu >= 0)
 	{
 		//******ShowStatus(TeamList[menu]);
-		waitanykey;
+		WaitKey;
 		redraw;
 		SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 	}
@@ -3531,7 +3492,7 @@ void ShowStatus(int role)
 {
 	T_Role* hero = &g_roleData.roles[role];
 
-	DrawFrameRectangle(STATUS_FRAME_X, STATUS_FRAME_Y, STATUS_FRAME_W, STATUS_FRAME_H, 255, 0, 0x7f);
+	DrawFrameRectangle(STATUS_FRAME_X, STATUS_FRAME_Y, STATUS_FRAME_W, STATUS_FRAME_H, 0xff, 0, FRAME_TEXT_ALPHA);
 
 	//显示头像
 	DrawFacePic(hero->faceIndex, STATUS_FACE_X, STATUS_FACE_Y);
@@ -3814,7 +3775,7 @@ SDL_KEYUP:
 					SDL_UpdateRect(g_screenSurface, 80, 30, 47, 95);
 					break;
 				}
-				if ((event.key.keysym.sym == sdlk_return) or (event.key.keysym.sym == sdlk_space))
+				if ((event.key.keysym.sym == sdlk_return) || (event.key.keysym.sym == sdlk_space))
 				{
 					switch (menu) {
 3:
@@ -3832,7 +3793,7 @@ SDL_KEYUP:
 2:
 						{
 							if (g_fullScreen == 1)
-								g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_SWSURFACE or SDL_DOUBLEBUF or SDL_ANYFORMAT)
+								g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_SWSURFACE || SDL_DOUBLEBUF || SDL_ANYFORMAT)
 							else
 								g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_FULLSCREEN);
 							g_fullScreen = 1 - g_fullScreen;
@@ -3866,7 +3827,7 @@ SDL_MOUSEBUTTONUP:
 2:
 						{
 							if (g_fullScreen == 1)
-								g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_SWSURFACE or SDL_DOUBLEBUF or SDL_ANYFORMAT)
+								g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_SWSURFACE || SDL_DOUBLEBUF || SDL_ANYFORMAT)
 							else
 								g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_FULLSCREEN);
 							g_fullScreen = 1 - g_fullScreen;
@@ -3876,7 +3837,7 @@ SDL_MOUSEBUTTONUP:
 			}
 SDL_MOUSEMOTION:
 			{
-				if ((event.button.x >= 80) and (event.button.x < 127) and (event.button.y > 47) and (event.button.y < 120))
+				if ((event.button.x >= 80) && (event.button.x < 127) && (event.button.y > 47) && (event.button.y < 120))
 				{
 					menup = menu;
 					menu = (event.button.y - 32) / 22;
@@ -4024,7 +3985,7 @@ void EffectMedcine(role1, int role2 = 0)()
 	word = format("%3d", [addlife]);
 	drawengshadowtext(@word[1], 220, 125, COLOR(0x66), COLOR(0x64));
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	waitanykey;
+	WaitKey;
 	redraw;
 
 }
@@ -4046,7 +4007,7 @@ void EffectMedPoision(role1, int role2 = 0)()
 	word = format("%3d", [minuspoi]);
 	drawengshadowtext(@word[1], 220, 125, COLOR(0x66), COLOR(0x64));
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	waitanykey;
+	WaitKey;
 	redraw;
 
 }
@@ -4067,13 +4028,13 @@ str: widestring;
 {
 
 	word[0] = " 增加生命"; word[1] = " 增加生命最大值"; word[2] = " 中毒程度";
-	word[3] = " 增加體力"; word[4] = " 內力門路陰陽合一"; word[5] = " 增加內力';
-	word[6] = " 增加內力最大值'; word[7] = " 增加攻擊力'; word[8] = " 增加輕功";
+	word[3] = " 增加體力"; word[4] = " 內力門路陰陽合一"; word[5] = " 增加內力";
+	word[6] = " 增加內力最大值"; word[7] = " 增加攻擊力"; word[8] = " 增加輕功";
 	word[9] = " 增加防禦力"; word[10] = " 增加醫療能力"; word[11] = " 增加用毒能力";
 	word[12] = " 增加解毒能力"; word[13] = " 增加抗毒能力"; word[14] = " 增加拳掌能力";
-	word[15] = " 增加御劍能力'; word[16] = " 增加耍刀能力"; word[17] = " 增加特殊兵器";
-	word[18] = " 增加暗器技巧"; word[19] = " 增加武學常識"; word[20] = " 增加品德指數';
-	word[21] = " 習得左右互搏"; word[22] = " 增加攻擊帶毒'; word[23] = " 受傷程度';
+	word[15] = " 增加御劍能力"; word[16] = " 增加耍刀能力"; word[17] = " 增加特殊兵器";
+	word[18] = " 增加暗器技巧"; word[19] = " 增加武學常識"; word[20] = " 增加品德指數";
+	word[21] = " 習得左右互搏"; word[22] = " 增加攻擊帶毒"; word[23] = " 受傷程度";
 	rolelist[0] = 17; rolelist[1] = 18; rolelist[2] = 20; rolelist[3] = 21;
 	rolelist[4] = 40; rolelist[5] = 41; rolelist[6] = 42; rolelist[7] = 43;
 	rolelist[8] = 44; rolelist[9] = 45; rolelist[10] = 46; rolelist[11] = 47;
@@ -4120,10 +4081,10 @@ str: widestring;
 	p = 0;
 	for i = 0 to 23 do
 	{
-		if ((i <> 4) and (i <> 21) and (addvalue[i] <> 0)) p = p + 1;
+		if ((i <> 4) && (i <> 21) && (addvalue[i] <> 0)) p = p + 1;
 	}
-	if ((addvalue[4] == 2) and (rrole[rnum].data[40] <> 2)) p = p + 1;
-	if ((addvalue[21] == 1) and (rrole[rnum].data[58] <> 1)) p = p + 1;
+	if ((addvalue[4] == 2) && (rrole[rnum].data[40] <> 2)) p = p + 1;
+	if ((addvalue[21] == 1) && (rrole[rnum].data[58] <> 1)) p = p + 1;
 
 	ShowSimpleStatus(rnum, 350, 50);
 	DrawFrameRectangle(100, 70, 200, 25, 0, COLOR(255), 25);
@@ -4143,7 +4104,7 @@ str: widestring;
 		DrawFrameRectangle(100, 100, 400, 22 * l + 25, 0, COLOR(0xFF), 25);
 	}
 	drawbig5shadowtext(@rrole[rnum].data[4], 83, 102, COLOR(0x23), COLOR(0x21));
-	str = " 未增加屬性';
+	str = " 未增加屬性";
 	if (p == 0) drawshadowtext(@str[1], 163, 102, COLOR(7), COLOR(5));
 	p = 0;
 	for i = 0 to 23 do
@@ -4157,7 +4118,7 @@ str: widestring;
 			x = 200;
 			y = -l * 22;
 		}
-		if ((i <> 4) and (i <> 21) and (addvalue[i] <> 0))
+		if ((i <> 4) && (i <> 21) && (addvalue[i] <> 0))
 		{
 			rrole[rnum].data[rolelist[i]] = rrole[rnum].data[rolelist[i]] + addvalue[i];
 			drawshadowtext(@word[i, 1], 83 + x, 124 + y + p * 22, COLOR(7), COLOR(5));
@@ -4166,7 +4127,7 @@ str: widestring;
 			p = p + 1;
 		}
 		//对内力性质特殊处理
-		if ((i == 4) and (addvalue[i] == 2))
+		if ((i == 4) && (addvalue[i] == 2))
 		{
 			if (rrole[rnum].data[rolelist[i]] <> 2)
 			{
@@ -4176,7 +4137,7 @@ str: widestring;
 			}
 		}
 		//对左右互搏特殊处理
-		if ((i == 21) and (addvalue[i] == 1))
+		if ((i == 21) && (addvalue[i] == 1))
 		{
 			if (rrole[rnum].data[rolelist[i]] <> 1)
 			{
@@ -4193,7 +4154,11 @@ str: widestring;
 //Event.
 //事件系统
 
-void int CallEvent(num = 0)()
+const void *CMD_FUNCS(sint16**) = {
+	Cmd0
+};
+
+void CallEvent(int event)
 	var
 	e: array of smallint;
 	int   i = 0;
@@ -4204,31 +4169,23 @@ void int CallEvent(num = 0)()
 	int p = 0;
 check: boolean;
 {
+	byte* cmdBuffer = NULL;
+
 	//g_curEvent=num;
-	g_ex = Sx;
-	g_ey = Sy;
+	g_ex = g_sx;
+	g_ey = g_sy;
 	g_sStep = 0;
-	idx = fileopen("kdef.idx", fmopenread);
-	grp = fileopen("kdef.grp", fmopenread);
-	if (num == 0)
-	{
-		offset = 0;
-		fileread(idx, length, 4);
+	
+	if (event) {
+		cmdBuffer = g_cmdGrpBuff + *(g_cmdIdxBuff + event - 1);
+	} else {
+		cmdBuffer = g_cmdGrpBuff;
 	}
-	else
-	{
-		fileseek(idx, (num - 1) * 4, 0);
-		fileread(idx, offset, 4);
-		fileread(idx, length, 4);
-	}
-	length = (length - offset) / 2;
-	setlength(e, length + 1);
-	fileseek(grp, offset, 0);
-	fileread(grp, e[0], length * 2);
-	fileclose(idx);
-	fileclose(grp);
-	i = 0;
+
+	sint16* cmd = cmdBuffer;
+	while (*cmd >= 0) (*CMD_FUNCS[*cmd])(cmd);
 	//普通事件写成子程, 需跳转事件写成函数
+	/*
 	while e[i] >= 0 do
 	{
 		switch (e[i]) {
@@ -4578,6 +4535,7 @@ check: boolean;
 			}
 		}
 	}
+*/
 
 	event.key.keysym.sym = 0;
 	event.button.button = 0;
@@ -4590,15 +4548,21 @@ check: boolean;
 }
 
 //事件指令含义请参阅其他相关文献
-
-void instruct_0()
+void CmdRedraw(sint16** cmd)
 {
+	(*cmd)++;
 	redraw;
 	//sdl_updaterect(g_screenSurface,0,0,g_screenSurface.w,g_screenSurface.h);
-
 }
 
-void instruct_1(talknum, headnum, int dismode = 0)()
+void CmdTalk(sint16** cmd)
+{
+	(*cmd)++;
+	int talkIndex = (*cmd)++;
+	int faceIndex = (*cmd)++;
+	int disMode =(*cmd)++;
+
+	/*
 	var
 	int   idx = 0;
 	int  grp = 0;
@@ -4612,8 +4576,8 @@ void instruct_1(talknum, headnum, int dismode = 0)()
 	int  diagx = 0;
 	int diagy = 0;
 talkarray: array of byte;
-name: WideString;
-{
+char name: WideString;
+
 	switch (dismode) {
 0:
 		{
@@ -4699,10 +4663,10 @@ name: WideString;
 			drawbig5shadowtext(@talkarray[p], diagx, diagy + l * 22, COLOR(0xFF), COLOR(0x0));
 			p = i + 1;
 			l = l + 1;
-			if ((l >= 4) and (i < len))
+			if ((l >= 4) && (i < len))
 			{
 				sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-				WaitAnyKey;
+				WaitKey;
 				Redraw;
 				DrawRectangle(0, diagy - 10, 640, 120, 0, 40);
 				if (headx > 0) DrawFacePic(headnum, headx, heady);
@@ -4711,35 +4675,33 @@ name: WideString;
 		}
 	}
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	waitanykey;
+	WaitKey;
 	redraw;
 
+	*/
 }
 
 //得到物品可显示数量, 数量为负显示失去物品
-
-void instruct_2(inum, int amount = 0)()
-	var
-	int   i = 0;
-	int x = 0;
-word: widestring;
+void CmdItemGetLost(sint16** cmd)
 {
-	i = 0;
-	while (RItemList[i].Number >= 0) and (i < MAX_ITEM_NUM) do
-	{
-		if ((RItemList[i].Number == inum))
-		{
-			RItemList[i].Amount = RItemList[i].Amount + amount;
-			if ((RItemList[i].Amount < 0) and (amount >= 0)) RItemList[i].Amount = 32767;
-			if ((RItemList[i].Amount < 0) and (amount < 0)) RItemList[i].Amount = 0;
+	(*cmd)++;
+	int item = (*cmd)++;
+	int num = (*cmd)++;
+
+	int i;
+	for (i = 0; g_roleData.itmes[i].index >= 0 && i < MAX_ITEM_NUM; i++) {
+		if (g_roleData.itmes[i].index == item) {
+			g_roleData.items[i].num += num;
+			if (g_roleData.items[i].num < 0 && num >= 0) g_roleData.items[i].num = 32767;
+			if (g_roleData.items[i].num < 0 && num < 0) g_roleData.items[i].num = 0;
 			break;
 		}
-		i = i + 1;
 	}
-	if (RItemList[i].number < 0)
+
+	if (g_roleData.items[i].number < 0)
 	{
-		RItemList[i].Number = inum;
-		RItemList[i].Amount = amount;
+		g_roleData.items[i].Number = inum;
+		g_roleData.items[i].num =.num;
 	}
 
 	ReArrangeItem;
@@ -4748,18 +4710,18 @@ word: widestring;
 	if (g_inGame == 2) x = 190;
 
 	DrawFrameRectangle(x - 75, 98, 145, 76, 0, COLOR(255), 30);
-	if (amount >= 0)
+	if .num >= 0)
 		word = " 得到物品"
 	else
 		word = " 失去物品";
 	drawshadowtext(@word[1], x - 90, 100, COLOR(0x23), COLOR(0x21));
 	drawbig5shadowtext(@RItem[inum].Name, x - 90, 125, COLOR(0x7), COLOR(0x5));
-	word = " 數量';
+	word = " 數量";
 	drawshadowtext(@word[1], x - 90, 150, COLOR(0x66), COLOR(0x64));
-	word = format(" %5d", [amount]);
+	word = format(" %5d", .num]);
 	drawengshadowtext(@word[1], x - 5, 150, COLOR(0x66), COLOR(0x64));
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	waitanykey;
+	WaitKey;
 	redraw;
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 
@@ -4776,7 +4738,7 @@ void ReArrangeItem()
 	setlength(amount, MAX_ITEM_NUM);
 	for i = 0 to MAX_ITEM_NUM - 1 do
 	{
-		if ((RItemList[i].Number >= 0) and (RItemList[i].Amount > 0))
+		if ((RItemList[i].Number >= 0) && (RItemList[i].Amount > 0))
 		{
 			item[p] = RItemList[i].Number;
 			amount[p] = RItemList[i].Amount;
@@ -4912,7 +4874,7 @@ void int instruct_10(rnum = 0)()
 			Teamlist[i] = rnum;
 			for i1 = 0 to 3 do
 			{
-				if ((Rrole[rnum].TakingItem[i1] >= 0) and (Rrole[rnum].TakingItemAmount[i1] > 0))
+				if ((Rrole[rnum].TakingItem[i1] >= 0) && (Rrole[rnum].TakingItemAmount[i1] > 0))
 				{
 					instruct_2(Rrole[rnum].TakingItem[i1], Rrole[rnum].TakingItemAmount[i1]);
 					Rrole[rnum].TakingItem[i1] = -1;
@@ -4954,7 +4916,7 @@ void instruct_12()
 	for i = 0 to 5 do
 	{
 		rnum = Teamlist[i];
-		if (not ((RRole[rnum].Hurt > 33) or (RRole[rnum].Poision > 0)))
+		if (not ((RRole[rnum].Hurt > 33) || (RRole[rnum].Poision > 0)))
 		{
 			RRole[rnum].CurrentHP = RRole[rnum].MaxHP;
 			RRole[rnum].CurrentMP = RRole[rnum].MaxMP;
@@ -4972,7 +4934,7 @@ void instruct_13()
 {
 	//for i1=0 to 199 do
 	//for i2=0 to 10 do
-	//g_scenceEventData[g_curScence, [i1,i2]=g_scenceEventData[g_curScence,i1,i2];
+	//g_curScenceEventData[ [i1,i2]=g_curScenceEventData[i1,i2];
 	InitialScence;
 	for i = 0 to 5 do
 	{
@@ -5007,12 +4969,12 @@ str: widestring;
 {
 	g_inGame = 3;
 	redraw;
-	str = " 勝敗乃兵家常事，但是…';
+	str = " 勝敗乃兵家常事，但是…";
 	drawshadowtext(@str[1], 50, 330, COLOR(255), COLOR(255));
 	str = " 地球上又多了一失蹤人口";
 	drawshadowtext(@str[1], 50, 360, COLOR(255), COLOR(255));
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	waitanykey;
+	WaitKey;
 }
 
 int function instruct_16(rnum = 0;
@@ -5068,7 +5030,7 @@ void instruct_19(x, int y = 0)()
 	Redraw;
 }
 
-//Judge the team is full or not.
+//Judge the team is full || not.
 
 int function instruct_20(jump1 = 0;
 		int jump2 = 0int ) = 0;
@@ -5196,11 +5158,11 @@ AboutMainRole: boolean;
 		AboutMainRole = true;
 	}
 	if (enum == g_curScenceData[ 3, Sx, Sy]) AboutMainRole = true;
-	g_curScenceData[ 3, g_scenceEventData[g_curScence, enum, 10], g_scenceEventData[g_curScence, enum, 9]] = enum;
+	g_curScenceData[ 3, g_curScenceEventData[ enum, 10], g_curScenceEventData[ enum, 9]] = enum;
 	for i = beginpic to endpic do
 	{
-		g_scenceEventData[g_curScence, enum, 5] = i;
-		UpdateScence(g_scenceEventData[g_curScence, enum, 10], g_scenceEventData[g_curScence, enum, 9]);
+		g_curScenceEventData[ enum, 5] = i;
+		UpdateScence(g_curScenceEventData[ enum, 10], g_curScenceEventData[ enum, 9]);
 		sdl_delay(20);
 		DrawScenceWithoutRole(Sx, Sy);
 		if (not (AboutMainRole))
@@ -5209,9 +5171,9 @@ AboutMainRole: boolean;
 		SDL_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 	}
 	//showmessage(inttostr(Sx+100*Sy));
-	//showmessage(inttostr(g_scenceEventData[g_curScence, [enum,10]+100*g_scenceEventData[g_curScence, [enum,9]));
-	g_scenceEventData[g_curScence, enum, 5] = g_scenceEventData[g_curScence, enum, 7];
-	UpdateScence(g_scenceEventData[g_curScence, enum, 10], g_scenceEventData[g_curScence, enum, 9]);
+	//showmessage(inttostr(g_curScenceEventData[ [enum,10]+100*g_curScenceEventData[ [enum,9]));
+	g_curScenceEventData[ enum, 5] = g_curScenceEventData[ enum, 7];
+	UpdateScence(g_curScenceEventData[ enum, 10], g_curScenceEventData[ enum, 9]);
 }
 
 int function instruct_28(rnum = 0;
@@ -5221,7 +5183,7 @@ int function instruct_28(rnum = 0;
 		int jump2 = 0int ) = 0;
 {
 	result = jump2;
-	if ((rrole[rnum].Ethics >= e1) and (rrole[rnum].Ethics <= e2)) result = jump1;
+	if ((rrole[rnum].Ethics >= e1) && (rrole[rnum].Ethics <= e2)) result = jump1;
 }
 
 int function instruct_29(rnum = 0;
@@ -5231,7 +5193,7 @@ int function instruct_29(rnum = 0;
 		int jump2 = 0int ) = 0;
 {
 	result = jump2;
-	if ((rrole[rnum].Attack >= r1) and (rrole[rnum].Attack <= r2)) result = jump1;
+	if ((rrole[rnum].Attack >= r1) && (rrole[rnum].Attack <= r2)) result = jump1;
 }
 
 void instruct_30(x1, y1, x2, int y2 = 0)()
@@ -5240,8 +5202,8 @@ void instruct_30(x1, y1, x2, int y2 = 0)()
 {
 	s = sign(x2 - x1);
 	Sy = x1 + s;
-	if (s > 0) Sface = 1;
-	if (s < 0) Sface = 2;
+	if (s > 0) g_sFace = 1;
+	if (s < 0) g_sFace = 2;
 	if (s <> 0)
 		while s * (x2 - Sy) >= 0 do
 		{
@@ -5255,8 +5217,8 @@ void instruct_30(x1, y1, x2, int y2 = 0)()
 		}
 	s = sign(y2 - y1);
 	Sx = y1 + s;
-	if (s > 0) Sface = 3;
-	if (s < 0) Sface = 0;
+	if (s > 0) g_sFace = 3;
+	if (s < 0) g_sFace = 0;
 	if (s <> 0)
 		while s * (y2 - Sx) >= 0 do
 		{
@@ -5284,7 +5246,7 @@ int i = 0;
 	result = jump2;
 	for i = 0 to MAX_ITEM_NUM - 1 do
 	{
-		if ((RItemList[i].Number == MONEY_ID) and (RItemList[i].Amount >= moneynum))
+		if ((RItemList[i].Number == MONEY_ID) && (RItemList[i].Amount >= moneynum))
 		{
 			result = jump1;
 			break;
@@ -5298,13 +5260,13 @@ void instruct_32(inum, int amount = 0)()
 word: widestring;
 {
 	i = 0;
-	while (RItemList[i].Number >= 0) and (i < MAX_ITEM_NUM) do
+	while (RItemList[i].Number >= 0) && (i < MAX_ITEM_NUM) do
 	{
 		if ((RItemList[i].Number == inum))
 		{
 			RItemList[i].Amount = RItemList[i].Amount + amount;
-			if ((RItemList[i].Amount < 0) and (amount >= 0)) RItemList[i].Amount = 32767;
-			if ((RItemList[i].Amount < 0) and (amount < 0)) RItemList[i].Amount = 0;
+			if ((RItemList[i].Amount < 0) && (amount >= 0)) RItemList[i].Amount = 32767;
+			if ((RItemList[i].Amount < 0) && (amount < 0)) RItemList[i].Amount = 0;
 			break;
 		}
 		i = i + 1;
@@ -5326,7 +5288,7 @@ word: widestring;
 {
 	for i = 0 to 9 do
 	{
-		if ((RRole[rnum].Magic[i] <= 0) or (RRole[rnum].Magic[i] == magicnum))
+		if ((RRole[rnum].Magic[i] <= 0) || (RRole[rnum].Magic[i] == magicnum))
 		{
 			if (RRole[rnum].Magic[i] > 0) RRole[rnum].Maglevel[i] = RRole[rnum].Maglevel[i] + 100;
 			RRole[rnum].Magic[i] = magicnum;
@@ -5338,12 +5300,12 @@ word: widestring;
 	if (dismode == 0)
 	{
 		DrawFrameRectangle(SCREEN_CENTER_X - 75, 98, 145, 76, 0, COLOR(255), 30);
-		word = " 學會';
+		word = " 學會";
 		drawshadowtext(@word[1], SCREEN_CENTER_X - 90, 125, COLOR(0x7), COLOR(0x5));
 		drawbig5shadowtext(@rrole[rnum].Name, SCREEN_CENTER_X - 90, 100, COLOR(0x23), COLOR(0x21));
 		drawbig5shadowtext(@Rmagic[magicnum].Name, SCREEN_CENTER_X - 90, 150, COLOR(0x66), COLOR(0x64));
 		sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-		waitanykey;
+		WaitKey;
 		redraw;
 	}
 }
@@ -5369,7 +5331,7 @@ void instruct_34(rnum, int iq = 0)()
 		word = format("%3d", [iq]);
 		drawengshadowtext(@word[1], SCREEN_CENTER_X + 30, 125, COLOR(0x66), COLOR(0x64));
 		sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-		waitanykey;
+		WaitKey;
 		redraw;
 	}
 }
@@ -5378,7 +5340,7 @@ void instruct_35(rnum, magiclistnum, magicnum, int exp = 0)()
 	var
 	int i = 0;
 {
-	if ((magiclistnum < 0) or (magiclistnum > 9))
+	if ((magiclistnum < 0) || (magiclistnum > 9))
 	{
 		for i = 0 to 9 do
 		{
@@ -5438,7 +5400,7 @@ void int instruct_39(snum = 0)()
 
 void int instruct_40(director = 0)()
 {
-	Sface = director;
+	g_sFace = director;
 }
 
 void instruct_41(rnum, inum, int amount = 0)()
@@ -5514,20 +5476,20 @@ void instruct_44(enum1, beginpic1, endpic1, enum2, beginpic2, int endpic2 = 0)()
 	var
 	int i = 0;
 {
-	g_curScenceData[ 3, g_scenceEventData[g_curScence, enum1, 10], g_scenceEventData[g_curScence, enum1, 9]] = enum1;
-	g_curScenceData[ 3, g_scenceEventData[g_curScence, enum2, 10], g_scenceEventData[g_curScence, enum2, 9]] = enum2;
+	g_curScenceData[ 3, g_curScenceEventData[ enum1, 10], g_curScenceEventData[ enum1, 9]] = enum1;
+	g_curScenceData[ 3, g_curScenceEventData[ enum2, 10], g_curScenceEventData[ enum2, 9]] = enum2;
 	for i = 0 to endpic1 - beginpic1 do
 	{
-		g_scenceEventData[g_curScence, enum1, 5] = beginpic1 + i;
-		g_scenceEventData[g_curScence, enum2, 5] = beginpic2 + i;
-		UpdateScence(g_scenceEventData[g_curScence, enum1, 10], g_scenceEventData[g_curScence, enum1, 9]);
-		UpdateScence(g_scenceEventData[g_curScence, enum2, 10], g_scenceEventData[g_curScence, enum2, 9]);
+		g_curScenceEventData[ enum1, 5] = beginpic1 + i;
+		g_curScenceEventData[ enum2, 5] = beginpic2 + i;
+		UpdateScence(g_curScenceEventData[ enum1, 10], g_curScenceEventData[ enum1, 9]);
+		UpdateScence(g_curScenceEventData[ enum2, 10], g_curScenceEventData[ enum2, 9]);
 		sdl_delay(20);
 		DrawScenceWithoutRole(Sx, Sy);
 		DrawScence;
 		SDL_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 	}
-	//g_curScenceData[ 3, g_scenceEventData[g_curScence, [enum,10],g_scenceEventData[g_curScence, [enum,9]]=-1;
+	//g_curScenceData[ 3, g_curScenceEventData[ [enum,10],g_curScenceEventData[ [enum,9]]=-1;
 }
 
 void instruct_45(rnum, int speed = 0)()
@@ -5542,7 +5504,7 @@ void instruct_45(rnum, int speed = 0)()
 	word = format("%4d", [speed]);
 	drawengshadowtext(@word[1], SCREEN_CENTER_X + 20, 125, COLOR(0x66), COLOR(0x64));
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	waitanykey;
+	WaitKey;
 	redraw;
 }
 
@@ -5553,13 +5515,13 @@ void instruct_46(rnum, int mp = 0)()
 	RRole[rnum].MaxMP = RRole[rnum].MaxMP + mp;
 	RRole[rnum].CurrentMP = RRole[rnum].MaxMP;
 	DrawFrameRectangle(SCREEN_CENTER_X - 75, 98, 145, 51, 0, COLOR(255), 30);
-	word = " 內力增加';
+	word = " 內力增加";
 	drawshadowtext(@word[1], SCREEN_CENTER_X - 90, 125, COLOR(0x7), COLOR(0x5));
 	drawbig5shadowtext(@rrole[rnum].Name, SCREEN_CENTER_X - 90, 100, COLOR(0x23), COLOR(0x21));
 	word = format("%4d", [mp]);
 	drawengshadowtext(@word[1], SCREEN_CENTER_X + 20, 125, COLOR(0x66), COLOR(0x64));
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	waitanykey;
+	WaitKey;
 	redraw;
 }
 
@@ -5575,7 +5537,7 @@ void instruct_47(rnum, int attack = 0)()
 	word = format("%4d", [attack]);
 	drawengshadowtext(@word[1], SCREEN_CENTER_X + 20, 125, COLOR(0x66), COLOR(0x64));
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	waitanykey;
+	WaitKey;
 	redraw;
 }
 
@@ -5592,7 +5554,7 @@ void instruct_48(rnum, int hp = 0)()
 	word = format("%4d", [hp]);
 	drawengshadowtext(@word[1], SCREEN_CENTER_X + 20, 125, COLOR(0x66), COLOR(0x64));
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	waitanykey;
+	WaitKey;
 	redraw;
 }
 
@@ -5634,12 +5596,12 @@ void instruct_52()
 	word: widestring;
 {
 	DrawFrameRectangle(SCREEN_CENTER_X - 110, 98, 220, 26, 0, COLOR(255), 30);
-	word = " 你的品德指數為：';
+	word = " 你的品德指數為：";
 	drawshadowtext(@word[1], SCREEN_CENTER_X - 125, 100, COLOR(0x7), COLOR(0x5));
 	word = format("%3d", [rrole[0].Ethics]);
 	drawengshadowtext(@word[1], SCREEN_CENTER_X + 65, 100, COLOR(0x66), COLOR(0x64));
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	waitanykey;
+	WaitKey;
 	redraw;
 }
 
@@ -5648,12 +5610,12 @@ void instruct_53()
 	word: widestring;
 {
 	DrawFrameRectangle(SCREEN_CENTER_X - 110, 98, 220, 26, 0, COLOR(255), 30);
-	word = " 你的聲望指數為：';
+	word = " 你的聲望指數為：";
 	drawshadowtext(@word[1], SCREEN_CENTER_X - 125, 100, COLOR(0x7), COLOR(0x5));
 	word = format("%3d", [rrole[0].Repute]);
 	drawengshadowtext(@word[1], SCREEN_CENTER_X + 65, 100, COLOR(0x66), COLOR(0x64));
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	waitanykey;
+	WaitKey;
 	redraw;
 }
 
@@ -5682,7 +5644,7 @@ int function instruct_55(enum = 0;
 		int jump2 = 0int ) = 0;
 {
 	result = jump2;
-	if (g_scenceEventData[g_curScence, enum, 2] == value) result = jump1;
+	if (g_curScenceEventData[ enum, 2] == value) result = jump1;
 }
 
 //Add repute.
@@ -5691,7 +5653,7 @@ int function instruct_55(enum = 0;
 void int instruct_56(Repute = 0)()
 {
 	RRole[0].Repute = RRole[0].Repute + repute;
-	if ((RRole[0].Repute > 200) and (RRole[0].Repute - repute <= 200))
+	if ((RRole[0].Repute > 200) && (RRole[0].Repute - repute <= 200))
 	{
 		//showmessage("");
 		instruct_3([70, 11, 0, 11, 0x3A4, -1, -1, 0x1F20, 0x1F20, 0x1F20, 0, 18, 21]);
@@ -5704,10 +5666,10 @@ void int instruct_56(Repute = 0)()
 	{
 		for i=0 to endpic1-beginpic1 do
 		{
-			g_scenceEventData[g_curScence, [enum1,5]=beginpic1+i;
-			g_scenceEventData[g_curScence, [enum2,5]=beginpic2+i;
-			UpdateScence(g_scenceEventData[g_curScence, [enum1,10],g_scenceEventData[g_curScence, [enum1,9]);
-			UpdateScence(g_scenceEventData[g_curScence, [enum2,10],g_scenceEventData[g_curScence, [enum2,9]);
+			g_curScenceEventData[ [enum1,5]=beginpic1+i;
+			g_curScenceEventData[ [enum2,5]=beginpic2+i;
+			UpdateScence(g_curScenceEventData[ [enum1,10],g_curScenceEventData[ [enum1,9]);
+			UpdateScence(g_curScenceEventData[ [enum2,10],g_curScenceEventData[ [enum2,9]);
 			sdl_delay(20);
 			DrawScenceByCenter(Sx,Sy);
 			DrawScence;
@@ -5817,11 +5779,11 @@ int p = 0;
 			str[i] = " ";
 			y = 80;
 			redraw;
-			waitanykey;
+			WaitKey;
 			DrawRectangle(0, 50, SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2 - 100, 0, 60);
 		}
 	}
-	waitanykey;
+	WaitKey;
 	instruct_14;
 
 }
@@ -5903,7 +5865,7 @@ int function e_GetValue(bit = 0;
 var
 int i = 0;
 {
-	i = t and (1 shl bit);
+	i = t && (1 shl bit);
 	if (i == 0) result = x else result = x50[x];
 }
 
@@ -5940,13 +5902,13 @@ word: widestring;
 		{
 			t1 = e3 + e_getvalue(0, e1, e4);
 			x50[t1] = e_getvalue(1, e1, e5);
-			if (e2 == 1) x50[t1] = x50[t1] and 0xFF;
+			if (e2 == 1) x50[t1] = x50[t1] && 0xFF;
 		}
 2: //Get the value of one member in parameter group.
 		{
 			t1 = e3 + e_getvalue(0, e1, e4);
 			x50[e5] = x50[t1];
-			if (e2 == 1) x50[t1] = x50[t1] and 0xFF;
+			if (e2 == 1) x50[t1] = x50[t1] && 0xFF;
 		}
 3: //Basic calculations.
 		{
@@ -6113,7 +6075,7 @@ word: widestring;
 			e4 = e_getvalue(2, e1, e4);
 			e5 = e_getvalue(3, e1, e5);
 			g_scenceEventData[e2, e3, e4] = e5;
-			//if (e2=g_curScence) g_scenceEventData[g_curScence, [e3,e4]=e5;
+			//if (e2=g_curScence) g_curScenceEventData[ [e3,e4]=e5;
 			//InitialScence;
 			//Redraw;
 			//sdl_updaterect(g_screenSurface,0,0,g_screenSurface.w,g_screenSurface.h);
@@ -6145,7 +6107,7 @@ word: widestring;
 			e4 = e_getvalue(2, e1, e4);
 			e5 = e_getvalue(3, e1, e5);
 			x50[e6] = g_scenceData[e2, e3, e5, e4];
-			//showmessage(inttostr(sface));
+			//showmessage(inttostr(g_sFace));
 		}
 25:
 		{
@@ -6193,9 +6155,9 @@ word: widestring;
 		  //0x1D2956: x50[e5] = g_ex;
 		  //0x1D2958: x50[e5] = g_ey;
 0x05B53A: x50[e5] = 1;
-0x0544F2: x50[e5] = Sface;
+0x0544F2: x50[e5] = g_sFace;
 			}
-			if ((t1 - 0x18FE2C >= 0) and (t1 - 0x18FE2C < 800))
+			if ((t1 - 0x18FE2C >= 0) && (t1 - 0x18FE2C < 800))
 			{
 				i = t1 - 0x18FE2C;
 				//showmessage(inttostr(e3));
@@ -6273,15 +6235,15 @@ word: widestring;
 				if (byte(p^) == 0x2A)
 				{
 					p^ = char(0);
-					drawbig5shadowtext(p1, e3 - 22, e4 + 22 * i - 25, COLOR(e5 and 0xFF), COLOR((e5 and 0xFF00) shl 8));
+					drawbig5shadowtext(p1, e3 - 22, e4 + 22 * i - 25, COLOR(e5 && 0xFF), COLOR((e5 && 0xFF00) shl 8));
 					i = i + 1;
 					p1 = p + 1;
 				}
 				p = p + 1;
 			}
-			drawbig5shadowtext(p1, e3 - 22, e4 + 22 - 25, COLOR(e5 and 0xFF), COLOR((e5 and 0xFF00) shl 8));
+			drawbig5shadowtext(p1, e3 - 22, e4 + 22 - 25, COLOR(e5 && 0xFF), COLOR((e5 && 0xFF00) shl 8));
 			sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-			//waitanykey;
+			//WaitKey;
 		}
 34: //Draw a rectangle as background.
 		{
@@ -6292,9 +6254,9 @@ word: widestring;
 			DrawFrameRectangle(e2, e3, e4, e5, 0, COLOR(0xFF), 40);
 			//sdl_updaterect(g_screenSurface,e1,e2,e3+1,e4+1);
 		}
-35: //Pause and wait a key.
+35: //Pause && wait a key.
 		{
-			i = waitanykey;
+			i = WaitKey;
 			x50[e1] = i;
 			switch (i) {
 sdlk_left: x50[e1] = 154;
@@ -6310,7 +6272,7 @@ sdlk_down: x50[e1] = 152;
 			e5 = e_getvalue(2, e1, e5);
 			//word = big5toUTF8(@x50[e2]);
 			//t1 = length(word);
-			//drawtextwithrect(@word[1], e3, e4, t1 * 20 - 15, COLOR(e5 and 0xFF), COLOR((e5 and 0xFF00) shl 8));
+			//drawtextwithrect(@word[1], e3, e4, t1 * 20 - 15, COLOR(e5 && 0xFF), COLOR((e5 && 0xFF00) shl 8));
 			p = @x50[e2];
 			i1 = 1;
 			i2 = 0;
@@ -6341,15 +6303,15 @@ sdlk_down: x50[e1] = 152;
 				if (byte(p^) == 0x2A)
 				{
 					p^ = char(0);
-					drawbig5shadowtext(p1, e3 - 17, e4 + 22 * i + 2, COLOR(e5 and 0xFF), COLOR((e5 and 0xFF00) shl 8));
+					drawbig5shadowtext(p1, e3 - 17, e4 + 22 * i + 2, COLOR(e5 && 0xFF), COLOR((e5 && 0xFF00) shl 8));
 					i = i + 1;
 					p1 = p + 1;
 				}
 				p = p + 1;
 			}
-			drawbig5shadowtext(p1, e3 - 17, e4 + 22 * i + 2, COLOR(e5 and 0xFF), COLOR((e5 and 0xFF00) shl 8));
+			drawbig5shadowtext(p1, e3 - 17, e4 + 22 * i + 2, COLOR(e5 && 0xFF), COLOR((e5 && 0xFF00) shl 8));
 			sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-			i = waitanykey;
+			i = WaitKey;
 			if (i == sdlk_y) x50[0x7000] = 0 else x50[0x7000] = 1;
 			//redraw;
 		}
@@ -6393,7 +6355,7 @@ sdlk_down: x50[e1] = 152;
 				i1 = length(pchar(@x50[x50[e3 + i]]));
 				if (i1 > i2) i2 = i1;
 			}
-			t1 = (e1 shr 8) and 0xFF;
+			t1 = (e1 shr 8) && 0xFF;
 			if (t1 == 0) t1 = 5;
 			//showmessage(inttostr(t1));
 			x50[e4] = commonscrollmenu(e5, e6, i2 * 10 + 3, e2 - 1, t1) + 1;
@@ -6505,7 +6467,7 @@ int y = 0;
 		{
 			y = warsta[21 + i];
 			x = warsta[27 + i];
-			if (SelectTeamList and (1 shl i) > 0)
+			if (SelectTeamList && (1 shl i) > 0)
 			{
 				Brole[BRoleAmount].rnum = TeamList[i];
 				Brole[BRoleAmount].Team = 0;
@@ -6524,7 +6486,7 @@ int y = 0;
 		{
 			y = warsta[21 + i] + 1;
 			x = warsta[27 + i];
-			if ((warsta[9 + i] > 0) and (instruct_16(warsta[9 + i], 1, 0) == 0))
+			if ((warsta[9 + i] > 0) && (instruct_16(warsta[9 + i], 1, 0) == 0))
 			{
 				Brole[BRoleAmount].rnum = warsta[9 + i];
 				Brole[BRoleAmount].Team = 0;
@@ -6549,7 +6511,7 @@ int y = 0;
 
 	RestoreRoleStatus;
 
-	if ((bstatus == 1) or ((bstatus == 2) and (getexp <> 0)))
+	if ((bstatus == 1) || ((bstatus == 2) && (getexp <> 0)))
 	{
 		AddExp;
 		CheckLevelUp;
@@ -6600,13 +6562,13 @@ SDL_QUITEV:
 			if (messagedlg("Are you sure to quit?", mtConfirmation, [mbOk, mbCancel], 0) == idOK) Quit;
 SDL_KEYUP:
 			{
-				if (((event.key.keysym.sym == sdlk_return) or (event.key.keysym.sym == sdlk_space)) and (menu <> max))
+				if (((event.key.keysym.sym == sdlk_return) || (event.key.keysym.sym == sdlk_space)) && (menu <> max))
 				{
 					//选中人物则反转对应bit
 					result = result xor (1 shl menu);
 					ShowMultiMenu(max, menu, result);
 				}
-				if (((event.key.keysym.sym == sdlk_return) or (event.key.keysym.sym == sdlk_space)) and (menu == max))
+				if (((event.key.keysym.sym == sdlk_return) || (event.key.keysym.sym == sdlk_space)) && (menu == max))
 				{
 					if (result <> 0) break;
 				}
@@ -6625,19 +6587,19 @@ SDL_KEYUP:
 			}
 SDL_MOUSEBUTTONUP:
 			{
-				if ((event.button.button == sdl_button_left) and (menu <> max))
+				if ((event.button.button == sdl_button_left) && (menu <> max))
 				{
 					result = result xor (1 shl menu);
 					ShowMultiMenu(max, menu, result);
 				}
-				if ((event.button.button == sdl_button_left) and (menu == max))
+				if ((event.button.button == sdl_button_left) && (menu == max))
 				{
 					if (result <> 0) break;
 				}
 			}
 SDL_MOUSEMOTION:
 			{
-				if ((event.button.x >= SCREEN_CENTER_X - 75) and (event.button.x < SCREEN_CENTER_X + 75) and (event.button.y >= 150) and (event.button.y < max * 22 + 178))
+				if ((event.button.x >= SCREEN_CENTER_X - 75) && (event.button.x < SCREEN_CENTER_X + 75) && (event.button.y >= 150) && (event.button.y < max * 22 + 178))
 				{
 					menup = menu;
 					menu = (event.button.y - 152) / 22;
@@ -6662,19 +6624,19 @@ void ShowMultiMenu(max, menu, int status = 0)()
 	y = 150;
 	ReDraw;
 	str = " 選擇參與戰鬥之人物";
-	str1 = " 參戰';
+	str1 = " 參戰";
 	//Drawtextwithrect(@str[1],x,y-35,200,COLOR(0x23),COLOR(0x21));
 	DrawFrameRectangle(x + 30, y, 150, max * 22 + 28, 0, COLOR(255), 30);
 	for i = 0 to max do
 		if (i == menu)
 		{
 			drawshadowtext(@menustring[i][1], x + 13, y + 3 + 22 * i, COLOR(0x66), COLOR(0x64));
-			if ((status and (1 shl i)) > 0)
+			if ((status && (1 shl i)) > 0)
 				drawshadowtext(@str1[1], x + 113, y + 3 + 22 * i, COLOR(0x66), COLOR(0x64));
 		}
 		else {
 			drawshadowtext(@menustring[i][1], x + 13, y + 3 + 22 * i, COLOR(0x7), COLOR(0x5));
-			if ((status and (1 shl i)) > 0)
+			if ((status && (1 shl i)) > 0)
 				drawshadowtext(@str1[1], x + 113, y + 3 + 22 * i, COLOR(0x23), COLOR(0x21));
 		}
 	sdl_updaterect(g_screenSurface, x + 30, y, 151, max * 22 + 28 + 1);
@@ -6685,7 +6647,7 @@ void ShowMultiMenu(max, menu, int status = 0)()
 
 //Structure of Brole arrays:
 //the 1st pointer is "Battle Num";
-//The 2nd: 0: rnum, 1: Friend or enemy, 2: y, 3: x, 4: Face, 5: Dead or alive,
+//The 2nd: 0: rnum, 1: Friend || enemy, 2: y, 3: x, 4: Face, 5: Dead || alive,
 //         7: Acted, 8: Pic Num, 9: The number, 10, 11, 12: Auto, 13: Exp gotten.
 //初始化战场
 
@@ -6780,7 +6742,7 @@ void DrawWholeBField()
 	{
 		if ((SDL_LockSurface(g_screenSurface) < 0))
 		{
-			MessageBox(0, PChar(Format("Can't lock g_screenSurface : %s", [SDL_GetError])), "Error", MB_OK or MB_ICONHAND);
+			MessageBox(0, PChar(Format("Can't lock g_screenSurface : %s", [SDL_GetError])), "Error", MB_OK || MB_ICONHAND);
 			exit;
 		}
 	}
@@ -6789,7 +6751,7 @@ void DrawWholeBField()
 	for i1 = 0 to 63 do
 		for i2 = 0 to 63 do
 		{
-			if ((Bfield[2, i1, i2] >= 0) and (Brole[Bfield[2, i1, i2]].Dead == 0))
+			if ((Bfield[2, i1, i2] >= 0) && (Brole[Bfield[2, i1, i2]].Dead == 0))
 				DrawRoleOnBfield(i1, i2);
 		}
 	if ((SDL_MustLock(g_screenSurface)))
@@ -6812,7 +6774,7 @@ void DrawRoleOnBfield(x, int y = 0)()
 	{
 		if ((SDL_LockSurface(g_screenSurface) < 0))
 		{
-			MessageBox(0, PChar(Format("Can't lock g_screenSurface : %s", [SDL_GetError])), "Error", MB_OK or MB_ICONHAND);
+			MessageBox(0, PChar(Format("Can't lock g_screenSurface : %s", [SDL_GetError])), "Error", MB_OK || MB_ICONHAND);
 			exit;
 		}
 	}
@@ -6821,14 +6783,14 @@ void DrawRoleOnBfield(x, int y = 0)()
 	for i1 = x - 1 to x + 10 do
 		for i2 = y - 1 to y + 10 do
 		{
-			if ((i1 == x) and (i2 == y))
+			if ((i1 == x) && (i2 == y))
 				DrawBFPic(Rrole[Brole[Bfield[2, x, y]].rnum].HeadNum * 4 + Brole[Bfield[2, x, y]].Face + BEGIN_BATTLE_ROLE_PIC, pos.x, pos.y, 0);
 
 			if ((Bfield[1, i1, i2] > 0))
 			{
 				pos1 = GetMapScenceXYPos(i1, i2, Bx, By);
 				DrawBFPicInRect(Bfield[1, i1, i2] / 2, pos1.x, pos1.y, 0, pos.x - 20, pos.y - 60, 40, 60);
-				if ((Bfield[2, i1, i2] >= 0) and (Brole[Bfield[2, i1, i2]].Dead == 0))
+				if ((Bfield[2, i1, i2] >= 0) && (Brole[Bfield[2, i1, i2]].Dead == 0))
 					DrawBFPicInRect(Rrole[Brole[Bfield[2, x, y]].rnum].HeadNum * 4 + Brole[Bfield[2, i1, i2]].Face + BEGIN_BATTLE_ROLE_PIC, pos1.x, pos1.y, 0, pos.x - 20, pos.y - 60, 40, 60);
 			}
 		}
@@ -6854,7 +6816,7 @@ void InitialWholeBField()
 		{
 			x = -i1 * 18 + i2 * 18 + 1151;
 			y = i1 * 9 + i2 * 9 + 9;
-			if ((i1 < 0) or (i2 < 0) or (i1 > 63) or (i2 > 63)) DrawPicToBFPic(0, x, y)
+			if ((i1 < 0) || (i2 < 0) || (i1 > 63) || (i2 > 63)) DrawPicToBFPic(0, x, y)
 			else {
 				DrawPicToBFPic(bfield[0, i1, i2] / 2, x, y);
 				if ((bfield[1, i1, i2] > 0))
@@ -6887,7 +6849,7 @@ void BattleMainControl()
 		}
 
 		i = 0;
-		while (i < broleamount) and (Bstatus == 0) do
+		while (i < broleamount) && (Bstatus == 0) do
 		{
 			//当前人物位置作为屏幕中心
 			Bx = Brole[i].X;
@@ -6899,7 +6861,7 @@ void BattleMainControl()
 			//为我方且未阵亡, 非自动战斗, 则显示选单
 			if ((Brole[i].Dead == 0))
 			{
-				if ((Brole[i].Team == 0) and (Brole[i].Auto == 0))
+				if ((Brole[i].Team == 0) && (Brole[i].Auto == 0))
 				{
 					switch (BattleMenu(i)) {
 0: Move(i);
@@ -6913,7 +6875,7 @@ void BattleMainControl()
 7:
    {
 	   ShowStatus(Brole[i].rnum);
-	   waitanykey;
+	   WaitKey;
    }
 8: Rest(i);
 9:
@@ -7012,15 +6974,15 @@ int sum1 = 0;
 	sum1 = 0;
 	for i = 0 to broleamount - 1 do
 	{
-		if ((Brole[i].Team == 0) and (Brole[i].Dead == 0))
+		if ((Brole[i].Team == 0) && (Brole[i].Dead == 0))
 			sum0 = sum0 + 1;
-		if ((Brole[i].Team == 1) and (Brole[i].Dead == 0))
+		if ((Brole[i].Team == 1) && (Brole[i].Dead == 0))
 			sum1 = sum1 + 1;
 	}
 
-	if ((sum0 > 0) and (sum1 > 0)) result = 0;
-	if ((sum0 >= 0) and (sum1 == 0)) result = 1;
-	if ((sum0 == 0) and (sum1 > 0)) result = 2;
+	if ((sum0 > 0) && (sum1 > 0)) result = 0;
+	if ((sum0 >= 0) && (sum1 == 0)) result = 1;
+	if ((sum0 == 0) && (sum1 > 0)) result = 2;
 
 }
 
@@ -7044,7 +7006,7 @@ realmenu: array[0..9] of integer;
 	//移动是否可用
 	if (brole[bnum].Step > 0)
 	{
-		menustatus = menustatus or 1;
+		menustatus = menustatus || 1;
 		max = max + 1;
 	}
 
@@ -7063,26 +7025,26 @@ realmenu: array[0..9] of integer;
 		}
 		if (p > 0)
 		{
-			menustatus = menustatus or 2;
+			menustatus = menustatus || 2;
 			max = max + 1;
 		}
 	}
 	//用毒是否可用
-	if ((Rrole[rnum].UsePoi > 0) and (rrole[rnum].PhyPower >= 30))
+	if ((Rrole[rnum].UsePoi > 0) && (rrole[rnum].PhyPower >= 30))
 	{
-		menustatus = menustatus or 4;
+		menustatus = menustatus || 4;
 		max = max + 1;
 	}
 	//解毒是否可用
-	if ((Rrole[rnum].MedPoi > 0) and (rrole[rnum].PhyPower >= 50))
+	if ((Rrole[rnum].MedPoi > 0) && (rrole[rnum].PhyPower >= 50))
 	{
-		menustatus = menustatus or 8;
+		menustatus = menustatus || 8;
 		max = max + 1;
 	}
 	//医疗是否可用
-	if ((Rrole[rnum].Medcine > 0) and (rrole[rnum].PhyPower >= 50))
+	if ((Rrole[rnum].Medcine > 0) && (rrole[rnum].PhyPower >= 50))
 	{
-		menustatus = menustatus or 16;
+		menustatus = menustatus || 16;
 		max = max + 1;
 	}
 
@@ -7099,7 +7061,7 @@ SDL_QUITEV:
 			if (messagedlg("Are you sure to quit?", mtConfirmation, [mbOk, mbCancel], 0) == idOK) Quit;
 SDL_KEYUP:
 			{
-				if ((event.key.keysym.sym == sdlk_return) or (event.key.keysym.sym == sdlk_space))
+				if ((event.key.keysym.sym == sdlk_return) || (event.key.keysym.sym == sdlk_space))
 				{
 					break;
 				}
@@ -7115,10 +7077,10 @@ SDL_KEYUP:
 					if (menu > max) menu = 0;
 					showbmenu(menustatus, menu, max);
 				}
-				if ((event.key.keysym.sym == sdlk_return) and (event.key.keysym.modifier == kmod_lalt))
+				if ((event.key.keysym.sym == sdlk_return) && (event.key.keysym.modifier == kmod_lalt))
 				{
 					if (g_fullScreen == 1)
-						g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_SWSURFACE or SDL_DOUBLEBUF or SDL_ANYFORMAT)
+						g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_SWSURFACE || SDL_DOUBLEBUF || SDL_ANYFORMAT)
 					else
 						g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_FULLSCREEN);
 					g_fullScreen = 1 - g_fullScreen;
@@ -7131,7 +7093,7 @@ SDL_MOUSEBUTTONUP:
 			}
 SDL_MOUSEMOTION:
 			{
-				if ((event.button.x >= 100) and (event.button.x < 147) and (event.button.y >= 50) and (event.button.y < max * 22 + 78))
+				if ((event.button.x >= 100) && (event.button.x < 147) && (event.button.y >= 50) && (event.button.y < max * 22 + 78))
 				{
 					menup = menu;
 					menu = (event.button.y - 52) / 22;
@@ -7146,7 +7108,7 @@ SDL_MOUSEMOTION:
 	p = 0;
 	for i = 0 to 9 do
 	{
-		if ((menustatus and (1 shl i)) > 0)
+		if ((menustatus && (1 shl i)) > 0)
 		{
 			p = p + 1;
 			if (p > menu) break;
@@ -7164,8 +7126,8 @@ void ShowBMenu(MenuStatus, menu, int max = 0)()
 	int p = 0;
 word: array[0..9] of widestring;
 {
-	word[0] = " 移動';
-	word[1] = " 攻擊';
+	word[0] = " 移動";
+	word[1] = " 攻擊";
 	word[2] = " 用毒";
 	word[3] = " 解毒";
 	word[4] = " 醫療";
@@ -7173,18 +7135,18 @@ word: array[0..9] of widestring;
 	word[6] = " 等待";
 	word[7] = " 狀態";
 	word[8] = " 休息";
-	word[9] = " 自動';
+	word[9] = " 自動";
 	Redraw;
 	DrawFrameRectangle(100, 50, 47, max * 22 + 28, 0, COLOR(255), 30);
 	p = 0;
 	for i = 0 to 9 do
 	{
-		if ((p == menu) and ((menustatus and (1 shl i) > 0)))
+		if ((p == menu) && ((menustatus && (1 shl i) > 0)))
 		{
 			drawshadowtext(@word[i][1], 83, 53 + 22 * p, COLOR(0x66), COLOR(0x64));
 			p = p + 1;
 		}
-		else if ((p <> menu) and ((menustatus and (1 shl i) > 0)))
+		else if ((p <> menu) && ((menustatus && (1 shl i) > 0)))
 		{
 			drawshadowtext(@word[i][1], 83, 53 + 22 * p, COLOR(0x23), COLOR(0x21));
 			p = p + 1;
@@ -7270,7 +7232,7 @@ SDL_QUITEV:
 			if (messagedlg("Are you sure to quit?", mtConfirmation, [mbOk, mbCancel], 0) == idOK) Quit;
 SDL_KEYUP:
 			{
-				if ((event.key.keysym.sym == sdlk_return) or (event.key.keysym.sym == sdlk_space))
+				if ((event.key.keysym.sym == sdlk_return) || (event.key.keysym.sym == sdlk_space))
 				{
 					result = true;
 					x50[28927] = 1;
@@ -7285,28 +7247,28 @@ SDL_KEYUP:
 				if ((event.key.keysym.sym == sdlk_left))
 				{
 					Ay = Ay - 1;
-					if ((abs(Ax - Bx) + abs(Ay - By) > step) or (Bfield[3, Ax, Ay] <> 0)) Ay = Ay + 1;
+					if ((abs(Ax - Bx) + abs(Ay - By) > step) || (Bfield[3, Ax, Ay] <> 0)) Ay = Ay + 1;
 					DrawBFieldWithCursor(step);
 					sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 				}
 				if ((event.key.keysym.sym == sdlk_right))
 				{
 					Ay = Ay + 1;
-					if ((abs(Ax - Bx) + abs(Ay - By) > step) or (Bfield[3, Ax, Ay] <> 0)) Ay = Ay - 1;
+					if ((abs(Ax - Bx) + abs(Ay - By) > step) || (Bfield[3, Ax, Ay] <> 0)) Ay = Ay - 1;
 					DrawBFieldWithCursor(step);
 					sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 				}
 				if ((event.key.keysym.sym == sdlk_down))
 				{
 					Ax = Ax + 1;
-					if ((abs(Ax - Bx) + abs(Ay - By) > step) or (Bfield[3, Ax, Ay] <> 0)) Ax = Ax - 1;
+					if ((abs(Ax - Bx) + abs(Ay - By) > step) || (Bfield[3, Ax, Ay] <> 0)) Ax = Ax - 1;
 					DrawBFieldWithCursor(step);
 					sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 				}
 				if ((event.key.keysym.sym == sdlk_up))
 				{
 					Ax = Ax - 1;
-					if ((abs(Ax - Bx) + abs(Ay - By) > step) or (Bfield[3, Ax, Ay] <> 0)) Ax = Ax + 1;
+					if ((abs(Ax - Bx) + abs(Ay - By) > step) || (Bfield[3, Ax, Ay] <> 0)) Ax = Ax + 1;
 					DrawBFieldWithCursor(step);
 					sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 				}
@@ -7328,7 +7290,7 @@ SDL_MOUSEMOTION:
 			{
 				Axp = (-event.button.x + SCREEN_CENTER_X + 2 * event.button.y - 2 * SCREEN_CENTER_Y + 18) / 36 + Bx;
 				Ayp = (event.button.x - SCREEN_CENTER_X + 2 * event.button.y - 2 * SCREEN_CENTER_Y + 18) / 36 + By;
-				if ((abs(Axp - Bx) + abs(Ayp - By) <= step) and (Bfield[3, Axp, Ayp] == 0))
+				if ((abs(Axp - Bx) + abs(Ayp - By) <= step) && (Bfield[3, Axp, Ayp] == 0))
 				{
 					Ax = Axp;
 					Ay = Ayp;
@@ -7422,7 +7384,7 @@ pos: TPosition;
 	{
 		if ((SDL_LockSurface(g_screenSurface) < 0))
 		{
-			MessageBox(0, PChar(Format("Can't lock g_screenSurface : %s", [SDL_GetError])), "Error", MB_OK or MB_ICONHAND);
+			MessageBox(0, PChar(Format("Can't lock g_screenSurface : %s", [SDL_GetError])), "Error", MB_OK || MB_ICONHAND);
 			exit;
 		}
 	}
@@ -7431,9 +7393,9 @@ pos: TPosition;
 			if (Bfield[0, i1, i2] > 0)
 			{
 				pos = GetMapScenceXYPos(i1, i2, Bx, By);
-				if ((i1 == Ax) and (i2 == Ay))
+				if ((i1 == Ax) && (i2 == Ay))
 					DrawBFPic(Bfield[0, i1, i2] / 2, pos.x, pos.y, 1)
-				else if ((BField[3, i1, i2] == 0) and (abs(i1 - Bx) + abs(i2 - By) <= step))
+				else if ((BField[3, i1, i2] == 0) && (abs(i1 - Bx) + abs(i2 - By) <= step))
 					DrawBFPic(Bfield[0, i1, i2] / 2, pos.x, pos.y, 0)
 				else
 					DrawBFPic(Bfield[0, i1, i2] / 2, pos.x, pos.y, -1);
@@ -7446,7 +7408,7 @@ pos: TPosition;
 			if (Bfield[1, i1, i2] > 0)
 				DrawBFPic(Bfield[1, i1, i2] / 2, pos.x, pos.y, 0);
 			bnum = Bfield[2, i1, i2];
-			if ((bnum >= 0) and (Brole[bnum].Dead == 0))
+			if ((bnum >= 0) && (Brole[bnum].Dead == 0))
 				DrawBFPic(Rrole[Brole[bnum].rnum].HeadNum * 4 + Brole[bnum].Face + BEGIN_BATTLE_ROLE_PIC, pos.x, pos.y, 0);
 		}
 	if ((SDL_MustLock(g_screenSurface)))
@@ -7469,7 +7431,7 @@ pos: TPosition;
 	{
 		if ((SDL_LockSurface(g_screenSurface) < 0))
 		{
-			MessageBox(0, PChar(Format("Can't lock g_screenSurface : %s", [SDL_GetError])), "Error", MB_OK or MB_ICONHAND);
+			MessageBox(0, PChar(Format("Can't lock g_screenSurface : %s", [SDL_GetError])), "Error", MB_OK || MB_ICONHAND);
 			exit;
 		}
 	}
@@ -7479,7 +7441,7 @@ pos: TPosition;
 		for i2 = 0 to 63 do
 		{
 			pos = GetMapScenceXYPos(i1, i2, Bx, By);
-			if ((Bfield[2, i1, i2] >= 0) and (Brole[Bfield[2, i1, i2]].Dead == 0))
+			if ((Bfield[2, i1, i2] >= 0) && (Brole[Bfield[2, i1, i2]].Dead == 0))
 				DrawRoleOnBField(i1, i2);
 			if (Bfield[4, i1, i2] > 0)
 				DrawEffect(Epicnum, pos.x, pos.y);
@@ -7504,7 +7466,7 @@ pos: TPosition;
 	{
 		if ((SDL_LockSurface(g_screenSurface) < 0))
 		{
-			MessageBox(0, PChar(Format("Can't lock g_screenSurface : %s", [SDL_GetError])), "Error", MB_OK or MB_ICONHAND);
+			MessageBox(0, PChar(Format("Can't lock g_screenSurface : %s", [SDL_GetError])), "Error", MB_OK || MB_ICONHAND);
 			exit;
 		}
 	}
@@ -7513,7 +7475,7 @@ pos: TPosition;
 	for i1 = 0 to 63 do
 		for i2 = 0 to 63 do
 		{
-			if ((Bfield[2, i1, i2] >= 0) and (Brole[Bfield[2, i1, i2]].Dead == 0) and (Bfield[2, i1, i2] <> bnum))
+			if ((Bfield[2, i1, i2] >= 0) && (Brole[Bfield[2, i1, i2]].Dead == 0) && (Bfield[2, i1, i2] <> bnum))
 			{
 				DrawRoleOnBfield(i1, i2);
 			}
@@ -7617,7 +7579,7 @@ int menup = 0;
 	{
 		if (Rrole[rnum].Magic[i] > 0)
 		{
-			menustatus = menustatus or (1 shl i);
+			menustatus = menustatus || (1 shl i);
 			menustring[i] = Big5toUTF8(@Rmagic[Rrole[rnum].Magic[i]].Name);
 			menuengstring[i] = format("%3d", [Rrole[rnum].MagLevel[i] / 100 + 1]);
 			max = max + 1;
@@ -7637,7 +7599,7 @@ SDL_QUITEV:
 			if (messagedlg("Are you sure to quit?", mtConfirmation, [mbOk, mbCancel], 0) == idOK) Quit;
 SDL_KEYUP:
 			{
-				if ((event.key.keysym.sym == sdlk_return) or (event.key.keysym.sym == sdlk_space))
+				if ((event.key.keysym.sym == sdlk_return) || (event.key.keysym.sym == sdlk_space))
 				{
 					break;
 				}
@@ -7673,7 +7635,7 @@ SDL_MOUSEBUTTONUP:
 			}
 SDL_MOUSEMOTION:
 			{
-				if ((event.button.x >= 100) and (event.button.x < 267) and (event.button.y >= 50) and (event.button.y < max * 22 + 78))
+				if ((event.button.x >= 100) && (event.button.x < 267) && (event.button.y >= 50) && (event.button.y < max * 22 + 78))
 				{
 					menup = menu;
 					menu = (event.button.y - 52) / 22;
@@ -7690,7 +7652,7 @@ SDL_MOUSEMOTION:
 		p = 0;
 		for i = 0 to 9 do
 		{
-			if ((menustatus and (1 shl i)) > 0)
+			if ((menustatus && (1 shl i)) > 0)
 			{
 				p = p + 1;
 				if (p > menu) break;
@@ -7713,13 +7675,13 @@ void ShowMagicMenu(menustatus, menu, int max = 0)()
 	p = 0;
 	for i = 0 to 9 do
 	{
-		if ((p == menu) and ((menustatus and (1 shl i) > 0)))
+		if ((p == menu) && ((menustatus && (1 shl i) > 0)))
 		{
 			drawshadowtext(@menustring[i][1], 83, 53 + 22 * p, COLOR(0x66), COLOR(0x64));
 			drawengshadowtext(@menuengstring[i][1], 223, 53 + 22 * p, COLOR(0x66), COLOR(0x64));
 			p = p + 1;
 		}
-		else if ((p <> menu) and ((menustatus and (1 shl i) > 0)))
+		else if ((p <> menu) && ((menustatus && (1 shl i) > 0)))
 		{
 			drawshadowtext(@menustring[i][1], 83, 53 + 22 * p, COLOR(0x23), COLOR(0x21));
 			drawengshadowtext(@menuengstring[i][1], 223, 53 + 22 * p, COLOR(0x23), COLOR(0x21));
@@ -7738,7 +7700,7 @@ str: widestring;
 {
 	Ax = Bx;
 	Ay = By;
-	str = " 選擇攻擊方向';
+	str = " 選擇攻擊方向";
 	Drawtextwithrect(@str[1], 280, 200, 125, COLOR(0x23), COLOR(0x21));
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 	result = false;
@@ -7780,16 +7742,16 @@ Sdl_mousebuttonup:
 				//按照所点击位置设置方向
 				if (event.button.button == sdl_button_left)
 				{
-					if ((event.button.x < SCREEN_CENTER_X) and (event.button.y < SCREEN_CENTER_Y)) Ay = Ay - 1;
-					if ((event.button.x < SCREEN_CENTER_X) and (event.button.y >= SCREEN_CENTER_Y)) Ax = Ax + 1;
-					if ((event.button.x >= SCREEN_CENTER_X) and (event.button.y < SCREEN_CENTER_Y)) Ax = Ax - 1;
-					if ((event.button.x >= SCREEN_CENTER_X) and (event.button.y >= SCREEN_CENTER_Y)) Ay = Ay + 1;
+					if ((event.button.x < SCREEN_CENTER_X) && (event.button.y < SCREEN_CENTER_Y)) Ay = Ay - 1;
+					if ((event.button.x < SCREEN_CENTER_X) && (event.button.y >= SCREEN_CENTER_Y)) Ax = Ax + 1;
+					if ((event.button.x >= SCREEN_CENTER_X) && (event.button.y < SCREEN_CENTER_Y)) Ax = Ax - 1;
+					if ((event.button.x >= SCREEN_CENTER_X) && (event.button.y >= SCREEN_CENTER_Y)) Ay = Ay + 1;
 					break;
 				}
 			}
 		}
 	}
-	if ((Ax <> Bx) or (Ay <> By)) result = true;
+	if ((Ax <> Bx) || (Ay <> By)) result = true;
 
 }
 
@@ -7809,22 +7771,22 @@ void SetAminationPosition(mode, int step = 0)()
 			switch (mode) {
 0:
 				{
-					if ((i1 == Ax) and (i2 == Ay)) Bfield[4, i1, i2] = 1;
+					if ((i1 == Ax) && (i2 == Ay)) Bfield[4, i1, i2] = 1;
 				}
 3:
 				{
-					if ((abs(i1 - Ax) <= step) and (abs(i2 - Ay) <= step)) Bfield[4, i1, i2] = 1;
+					if ((abs(i1 - Ax) <= step) && (abs(i2 - Ay) <= step)) Bfield[4, i1, i2] = 1;
 				}
 1:
 				{
-					if (((i1 == Bx) or (i2 == By)) and (sign(Ax - Bx) == sign(i1 - Bx)) and (abs(i1 - Bx) <= step) and (sign(Ay - By) == sign(i2 - By)) and (abs(i2 - By) <= step))
+					if (((i1 == Bx) || (i2 == By)) && (sign(Ax - Bx) == sign(i1 - Bx)) && (abs(i1 - Bx) <= step) && (sign(Ay - By) == sign(i2 - By)) && (abs(i2 - By) <= step))
 						Bfield[4, i1, i2] = 1;
 				}
 2:
 				{
-					if (((i1 == Bx) and (abs(i2 - By) <= step)) or ((i2 == By) and (abs(i1 - Bx) <= step)))
+					if (((i1 == Bx) && (abs(i2 - By) <= step)) || ((i2 == By) && (abs(i1 - Bx) <= step)))
 						Bfield[4, i1, i2] = 1;
-					if (((i1 == Bx) and (i2 == By))) Bfield[4, i1, i2] = 0;
+					if (((i1 == Bx) && (i2 == By))) Bfield[4, i1, i2] = 0;
 				}
 			}
 		}
@@ -7874,7 +7836,7 @@ void CalHurtRole(bnum, mnum, int level = 0)()
 	for i = 0 to broleamount - 1 do
 	{
 		Brole[i].ShowNumber = -1;
-		if ((Bfield[4, Brole[i].X, Brole[i].Y] <> 0) and (Brole[bnum].Team <> Brole[i].Team) and (Brole[i].Dead == 0))
+		if ((Bfield[4, Brole[i].X, Brole[i].Y] <> 0) && (Brole[bnum].Team <> Brole[i].Team) && (Brole[i].Dead == 0))
 		{
 			//生命伤害
 			if ((rmagic[mnum].HurtType == 0))
@@ -7934,8 +7896,8 @@ int dis = 0;
 	k2 = 0;
 	for i = 0 to broleamount - 1 do
 	{
-		if ((Brole[i].Team == brole[bnum1].Team) and (Brole[i].Dead == 0) and (rrole[Brole[i].rnum].Knowledge > MIN_KNOWLEDGE)) k1 = k1 + rrole[Brole[i].rnum].Knowledge;
-		if ((Brole[i].Team == brole[bnum2].Team) and (Brole[i].Dead == 0) and (rrole[Brole[i].rnum].Knowledge > MIN_KNOWLEDGE)) k2 = k2 + rrole[Brole[i].rnum].Knowledge;
+		if ((Brole[i].Team == brole[bnum1].Team) && (Brole[i].Dead == 0) && (rrole[Brole[i].rnum].Knowledge > MIN_KNOWLEDGE)) k1 = k1 + rrole[Brole[i].rnum].Knowledge;
+		if ((Brole[i].Team == brole[bnum2].Team) && (Brole[i].Dead == 0) && (rrole[Brole[i].rnum].Knowledge > MIN_KNOWLEDGE)) k2 = k2 + rrole[Brole[i].rnum].Knowledge;
 	}
 	rnum1 = Brole[bnum1].rnum;
 	rnum2 = Brole[bnum2].rnum;
@@ -7953,7 +7915,7 @@ int dis = 0;
 		att = att + ritem[rrole[rnum1].Equip[0]].AddAttack;
 		for i = 0 to MAX_WEAPON_MATCH - 1 do
 		{
-			if ((rrole[rnum1].Equip[0] == g_matchList[i, 0]) and (mnum == g_matchList[i, 1]))
+			if ((rrole[rnum1].Equip[0] == g_matchList[i, 0]) && (mnum == g_matchList[i, 1]))
 			{
 				att = att + g_matchList[i, 2] * 2 / 3;
 				break;
@@ -7970,7 +7932,7 @@ int dis = 0;
 	dis = abs(brole[bnum1].X - brole[bnum2].X) + abs(brole[bnum1].Y - brole[bnum2].Y);
 	if (dis > 10) dis = 10;
 	result = result * (100 - (dis - 1) * 3) / 100;
-	if ((result <= 0) or (level <= 0)) result = random(10) + 1;
+	if ((result <= 0) || (level <= 0)) result = random(10) + 1;
 	if ((result > 9999)) result = 9999;
 	//showmessage(inttostr(result));
 
@@ -8059,7 +8021,7 @@ p: boolean;
 	for i = 0 to broleamount - 1 do
 	{
 		Brole[i].ShowNumber = -1;
-		if ((Rrole[Brole[i].rnum].Poision > 0) and (Brole[i].Dead == 0))
+		if ((Rrole[Brole[i].rnum].Poision > 0) && (Brole[i].Dead == 0))
 		{
 			Rrole[Brole[i].rnum].CurrentHP = Rrole[Brole[i].rnum].CurrentHP - Rrole[Brole[i].rnum].Poision / 10 - 1;
 			if (Rrole[Brole[i].rnum].CurrentHP <= 0) Rrole[Brole[i].rnum].CurrentHP = 1;
@@ -8104,7 +8066,7 @@ color1, color2: uint32;
 {
 	strs[0] = " 等級";
 	strs[1] = " 生命";
-	strs[2] = " 內力';
+	strs[2] = " 內力";
 	strs[3] = " 體力";
 
 	DrawFrameRectangle(x, y, 145, 173, 0, COLOR(255), 30);
@@ -8261,7 +8223,7 @@ str: widestring;
 		amount = Calrnum(0);
 		if (amount > 0) basicvalue = warsta[7] / amount
 		else basicvalue = 0;
-		if ((Brole[i].Team == 0) and (Brole[i].Dead == 0))
+		if ((Brole[i].Team == 0) && (Brole[i].Dead == 0))
 		{
 			Rrole[rnum].Exp = Rrole[rnum].Exp + basicvalue;
 			Rrole[rnum].ExpForBook = Rrole[rnum].ExpForBook + basicvalue / 5 * 4;
@@ -8274,7 +8236,7 @@ str: widestring;
 			Drawengshadowtext(@str[1], 188, 237, COLOR(0x66), COLOR(0x64));
 			sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 			Redraw;
-			waitanykey;
+			WaitKey;
 		}
 
 	}
@@ -8291,7 +8253,7 @@ void CheckLevelUp()
 	for i = 0 to BRoleAmount - 1 do
 	{
 		rnum = Brole[i].rnum;
-		while (uint16(Rrole[rnum].Exp) >= uint16(g_levelupList[Rrole[rnum].Level - 1])) and (Rrole[rnum].Level < MAX_LEVEL) do
+		while (uint16(Rrole[rnum].Exp) >= uint16(g_levelupList[Rrole[rnum].Level - 1])) && (Rrole[rnum].Level < MAX_LEVEL) do
 		{
 			Rrole[rnum].Exp = Rrole[rnum].Exp - g_levelupList[Rrole[rnum].Level - 1];
 			Rrole[rnum].Level = Rrole[rnum].Level + 1;
@@ -8347,7 +8309,7 @@ str: widestring;
 		ShowStatus(rnum);
 		str = " 升級";
 		Drawtextwithrect(@str[1], 50, SCREEN_CENTER_Y - 150, 46, COLOR(0x23), COLOR(0x21));
-		waitanykey;
+		WaitKey;
 	}
 
 }
@@ -8387,11 +8349,11 @@ str: widestring;
 					}
 			needexp = mlevel * Ritem[inum].NeedExp * (7 - Rrole[rnum].Aptitude / 15);
 
-			if ((Rrole[rnum].ExpForBook >= needexp) and (mlevel < 10))
+			if ((Rrole[rnum].ExpForBook >= needexp) && (mlevel < 10))
 			{
 				redraw;
 				EatOneItem(rnum, inum);
-				waitanykey;
+				WaitKey;
 				redraw;
 				sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 
@@ -8399,10 +8361,10 @@ str: widestring;
 					instruct_33(rnum, mnum, 1);
 				Rrole[rnum].ExpForBook = 0;
 				//ShowStatus(rnum);
-				//waitanykey;
+				//WaitKey;
 			}
 			//是否能够炼出物品
-			if ((Rrole[rnum].ExpForItem >= ritem[inum].NeedExpForItem) and (ritem[inum].NeedExpForItem > 0) and (Brole[i].Team == 0))
+			if ((Rrole[rnum].ExpForItem >= ritem[inum].NeedExpForItem) && (ritem[inum].NeedExpForItem > 0) && (Brole[i].Team == 0))
 			{
 				redraw;
 				p = 0;
@@ -8435,7 +8397,7 @@ str: widestring;
 					}
 				}
 				//ShowStatus(rnum);
-				//waitanykey;
+				//WaitKey;
 			}
 		}
 	}
@@ -8451,7 +8413,7 @@ int i = 0;
 	result = 0;
 	for i = 0 to broleamount - 1 do
 	{
-		if ((Brole[i].Team == team) and (Brole[i].Dead == 0)) result = result + 1;
+		if ((Brole[i].Team == team) && (Brole[i].Dead == 0)) result = result + 1;
 	}
 
 }
@@ -8476,7 +8438,7 @@ str: widestring;
 				EatOneItem(rnum, inum);
 				instruct_32(inum, -1);
 				Brole[bnum].Acted = 1;
-				waitanykey;
+				WaitKey;
 			}
 4:
 			{
@@ -8567,9 +8529,9 @@ select: boolean;
 	rnum = brole[bnum].rnum;
 	poi = Rrole[rnum].UsePoi;
 	step = poi / 15 + 1;
-	if ((Brole[bnum].Team == 0) and (brole[bnum].Auto == 0))
+	if ((Brole[bnum].Team == 0) && (brole[bnum].Auto == 0))
 		select = selectaim(bnum, step);
-	if ((bfield[2, Ax, Ay] >= 0) and (select == true))
+	if ((bfield[2, Ax, Ay] >= 0) && (select == true))
 	{
 		Brole[bnum].Acted = 1;
 		rrole[rnum].PhyPower = rrole[rnum].PhyPower - 3;
@@ -8606,14 +8568,14 @@ select: boolean;
 	rnum = brole[bnum].rnum;
 	med = Rrole[rnum].Medcine;
 	step = med / 15 + 1;
-	if ((Brole[bnum].Team == 0) and (brole[bnum].Auto == 0))
+	if ((Brole[bnum].Team == 0) && (brole[bnum].Auto == 0))
 		select = selectaim(bnum, step)
 	else
 	{
 		Ax = Bx;
 		Ay = By;
 	}
-	if ((bfield[2, Ax, Ay] >= 0) and (select == true))
+	if ((bfield[2, Ax, Ay] >= 0) && (select == true))
 	{
 		Brole[bnum].Acted = 1;
 		rrole[rnum].PhyPower = rrole[rnum].PhyPower - 5;
@@ -8653,14 +8615,14 @@ select: boolean;
 	rnum = brole[bnum].rnum;
 	medpoi = Rrole[rnum].MedPoi;
 	step = medpoi / 15 + 1;
-	if ((Brole[bnum].Team == 0) and (brole[bnum].Auto == 0))
+	if ((Brole[bnum].Team == 0) && (brole[bnum].Auto == 0))
 		select = selectaim(bnum, step)
 	else
 	{
 		Ax = Bx;
 		Ay = By;
 	}
-	if ((bfield[2, Ax, Ay] >= 0) and (select == true))
+	if ((bfield[2, Ax, Ay] >= 0) && (select == true))
 	{
 		Brole[bnum].Acted = 1;
 		rrole[rnum].PhyPower = rrole[rnum].PhyPower - 5;
@@ -8701,9 +8663,9 @@ select: boolean;
 	if (ritem[inum].UnKnow7 > 0)
 		callevent(ritem[inum].UnKnow7)
 	else {
-		if ((Brole[bnum].Team == 0) and (brole[bnum].Auto == 0))
+		if ((Brole[bnum].Team == 0) && (brole[bnum].Auto == 0))
 			select = selectaim(bnum, step);
-		if ((bfield[2, Ax, Ay] >= 0) and (select == true) and (brole[bfield[2, Ax, Ay]].Team <> 0))
+		if ((bfield[2, Ax, Ay] >= 0) && (select == true) && (brole[bfield[2, Ax, Ay]].Team <> 0))
 		{
 			Brole[bnum].Acted = 1;
 			instruct_32(inum, -1);
@@ -8771,14 +8733,14 @@ str: widestring;
 	showsimplestatus(rnum, 350, 50);
 	sdl_delay(450);
 	//showmessage("");
-	//Life is less than 20%, 70% probality to medcine or eat a pill.
+	//Life is less than 20%, 70% probality to medcine || eat a pill.
 	//生命低于20%, 70%可能医疗或吃药
-	if ((Brole[bnum].Acted == 0) and (RRole[rnum].CurrentHP < RRole[rnum].MaxHP / 5))
+	if ((Brole[bnum].Acted == 0) && (RRole[rnum].CurrentHP < RRole[rnum].MaxHP / 5))
 	{
 		if (random(100) < 70)
 		{
 			//医疗大于50, 且体力大于50才对自身医疗
-			if ((Rrole[rnum].Medcine >= 50) and (rrole[rnum].PhyPower >= 50) and (random(100) < 50))
+			if ((Rrole[rnum].Medcine >= 50) && (rrole[rnum].PhyPower >= 50) && (random(100) < 50))
 			{
 				medcine(bnum);
 			} else
@@ -8792,7 +8754,7 @@ str: widestring;
 
 	//MP is less than 20%, 60% probality to eat a pill.
 	//内力低于20%, 60%可能吃药
-	if ((Brole[bnum].Acted == 0) and (RRole[rnum].CurrentMP < RRole[rnum].MaxMP / 5))
+	if ((Brole[bnum].Acted == 0) && (RRole[rnum].CurrentMP < RRole[rnum].MaxMP / 5))
 	{
 		if (random(100) < 60)
 		{
@@ -8802,7 +8764,7 @@ str: widestring;
 
 	//Physical power is less than 20%, 80% probality to eat a pill.
 	//体力低于20%, 80%可能吃药
-	if ((Brole[bnum].Acted == 0) and (rrole[rnum].PhyPower < MAX_PHYSICAL_POWER / 5))
+	if ((Brole[bnum].Acted == 0) && (rrole[rnum].PhyPower < MAX_PHYSICAL_POWER / 5))
 	{
 		if (random(100) < 80)
 		{
@@ -8811,7 +8773,7 @@ str: widestring;
 	}
 
 	//如未能吃药且体力大于10, 则尝试攻击
-	if ((Brole[bnum].Acted == 0) and (rrole[rnum].PhyPower >= 10))
+	if ((Brole[bnum].Acted == 0) && (rrole[rnum].PhyPower >= 10))
 	{
 		//在敌方选择一个人物
 		eneamount = Calrnum(1 - Brole[bnum].Team);
@@ -8819,13 +8781,13 @@ str: widestring;
 		//showmessage(inttostr(eneamount));
 		for i = 0 to broleamount - 1 do
 		{
-			if ((Brole[bnum].Team <> Brole[i].Team) and (Brole[i].Dead == 0))
+			if ((Brole[bnum].Team <> Brole[i].Team) && (Brole[i].Dead == 0))
 			{
 				aim = aim - 1;
 				if (aim <= 0) break;
 			}
 		}
-		//Seclect one enemy randomly and try to close it.
+		//Seclect one enemy randomly && try to close it.
 		//尝试走到离敌人最近的位置
 		Ax = Bx;
 		Ay = By;
@@ -8839,7 +8801,7 @@ str: widestring;
 				if (Bfield[3, i1, i2] == 0)
 				{
 					dis = abs(Ax1 - i1) + abs(Ay1 - i2);
-					if ((dis < dis0) and (abs(i1 - Bx) + abs(i2 - By) <= brole[bnum].Step))
+					if ((dis < dis0) && (abs(i1 - Bx) + abs(i2 - By) <= brole[bnum].Step))
 					{
 						Ax = i1;
 						Ay = i2;
@@ -8919,7 +8881,7 @@ str: widestring;
 				for i1 = min(Ax, Bx) to max(Ax, Bx) do
 					for i2 = min(Ay, By) to max(Ay, By) do
 					{
-						if ((abs(i1 - Ax) <= step1) and (abs(i2 - Ay) <= step1) and (abs(i1 - Bx) + abs(i2 - By) <= step + step1))
+						if ((abs(i1 - Ax) <= step1) && (abs(i2 - Ay) <= step1) && (abs(i1 - Bx) + abs(i2 - By) <= step + step1))
 						{
 							if (dis < abs(i1 - Bx) + abs(i2 - By))
 							{
@@ -9000,7 +8962,7 @@ str: widestring;
 		p = -1;
 		for i = 0 to MAX_ITEM_NUM - 1 do
 		{
-			if ((RItemList[i].Amount > 0) and (ritem[RItemList[i].Number].ItemType == 3))
+			if ((RItemList[i].Amount > 0) && (ritem[RItemList[i].Number].ItemType == 3))
 			{
 				if (ritem[RItemList[i].Number].Data[list] > temp)
 				{
