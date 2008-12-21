@@ -159,6 +159,7 @@
 #define EVENT_GAME_START	691		//初始事件
 
 #define SCENCE_HOME			70		//初始场景
+#define SCENCE_EXIT			-1		//初始场景
 
 #define GAME_START_SX	20		//初始坐标(程序中的x, y与游戏中是相反的, 这是早期的遗留问题)
 #define GAME_START_SY	19		//初始坐标
