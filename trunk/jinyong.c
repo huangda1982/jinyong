@@ -1852,13 +1852,13 @@ CanEntrance: boolean;
 			{
 				LockScence=true;
 				for i=0 to 199 do
-					if (g_curScenceEventData[ [i,6]<>g_curScenceEventData[ [i,7])
+					if (g_curScenceEventData[ i,6]<>g_curScenceEventData[ i,7])
 					{
-						if ((g_curScenceEventData[ [i,5]<5498) || (g_curScenceEventData[ [i,5]>5692))
+						if ((g_curScenceEventData[ i,5]<5498) || (g_curScenceEventData[ i,5]>5692))
 						{
-							g_curScenceEventData[ [i,5]=g_curScenceEventData[ [i,5]+2;
-							if (g_curScenceEventData[ [i,5]>g_curScenceEventData[ [i,6]) g_curScenceEventData[ [i,5]=g_curScenceEventData[ [i,7];
-							updatescence(g_curScenceEventData[ [i,10],g_curScenceEventData[ [i,9]);
+							g_curScenceEventData[ i,5]=g_curScenceEventData[ i,5]+2;
+							if (g_curScenceEventData[ i,5]>g_curScenceEventData[ i,6]) g_curScenceEventData[ i,5]=g_curScenceEventData[ i,7];
+							updatescence(g_curScenceEventData[ i,10],g_curScenceEventData[ i,9]);
 						}
 					}
 				//initialscence;
@@ -1887,7 +1887,6 @@ int InScence(int scence, bool start)
 	//UpDate=SDL_CreateThread(@UpdateScenceAmi, NULL);
 	//LockScence=false;
 	int ret = 0;
-	//walking = 0;
 	//just = 0;
 	if ((g_scenceSurface = SDL_CreateRGBSurface(SDL_HWSURFACE, SCENCE_PIC_WIDTH, SCENCE_PIC_HEIGHT,
 					32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x00000000))) {
@@ -1931,9 +1930,9 @@ int InScence(int scence, bool start)
 				//是否有第3类事件位于场景入口
 				//CheckEvent3;
 				int key = PollKey();
-				if (g_inGame != EmInGameScence) {
-					break;
-				}
+				//if (g_inGame != EmInGameScence) {
+					//break;
+				//}
 
 				/*//场景内动态效果
 				  now = sdl_getticks;
@@ -1957,15 +1956,15 @@ int InScence(int scence, bool start)
 				}
 				*/
 
-				/*
 				//检查是否位于出口, 如是则退出
-				if (((sx == RScence[g_curScence].ExitX[0]) && (sy == RScence[g_curScence].ExitY[0]))
-				|| ((sx == RScence[g_curScence].ExitX[1]) && (sy == RScence[g_curScence].ExitY[1]))
-				|| ((sx == RScence[g_curScence].ExitX[2]) && (sy == RScence[g_curScence].ExitY[2]))) {
-				g_inGame = 0;
-				ret = -1;
-				break;
+				if ((g_sx == g_roleData.scences[g_curScence].exitX[0] && g_sy == g_roleData.scences[g_curScence].exitY[0])
+					|| (g_sx == g_roleData.scences[g_curScence].exitX[1] && g_sy == g_roleData.scences[g_curScence].exitY[1])
+					|| (g_sx == g_roleData.scences[g_curScence].exitX[2] && g_sy == g_roleData.scences[g_curScence].exitY[2])) {
+					g_inGame = EmInGameMap;
+					ret = -1;
+					break;
 				}
+				/*
 
 				//检查是否位于跳转口, 如是则重新初始化场景
 				if (((sx == RScence[g_curScence].JumpX1) && (sy == RScence[g_curScence].JumpY1)) && (RScence[g_curScence].JumpScence >= 0)) {
@@ -1999,37 +1998,6 @@ int InScence(int scence, bool start)
 				}
 				*/
 
-				//是否处于行走状态, 参考Walk
-				/*
-				   if (walking == 1)
-				   {
-				   sdl_getmousestate(x, y);
-				   if ((x < SCREEN_CENTER_X) && (y < SCREEN_CENTER_Y)) g_sFace = 2;
-				   if ((x > SCREEN_CENTER_X) && (y < SCREEN_CENTER_Y)) g_sFace = 0;
-				   if ((x < SCREEN_CENTER_X) && (y > SCREEN_CENTER_Y)) g_sFace = 3;
-				   if ((x > SCREEN_CENTER_X) && (y > SCREEN_CENTER_Y)) g_sFace = 1;
-				   Sx1 = Sx;
-				   Sy1 = Sy;
-				   switch (g_sFace) {
-0: Sx1 = Sx1 - 1;
-oooo
-1: Sy1 = Sy1 + 1;
-2: Sy1 = Sy1 - 1;
-3: Sx1 = Sx1 + 1;
-}
-g_sStep = g_sStep + 1;
-if (g_sStep == 8) g_sStep = 0;
-if (GoThroughScence(Sx1, Sy1) == true)
-{
-Sx = Sx1;
-Sy = Sy1;
-
-}
-DrawScence;
-SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-CheckEvent3;
-}
-*/
 
 switch (key) {
 	case SDLK_ESCAPE:
