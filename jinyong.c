@@ -264,7 +264,7 @@ void Quit()
 	exit(0);
 }
 
-//播放mp3音乐
+//播放音乐
 void PlayXMI(int index, int times)
 {
 	char str[PATH_MAX];
@@ -1899,16 +1899,16 @@ int InScence(int scence, bool start)
 
 		char smpFilename[PATH_MAX];
 		char sdxFilename[PATH_MAX];
-		sprintf(smpFilename, "smp%03d", scence);
-		sprintf(sdxFilename, "sdx%03d", scence);
+		sprintf(smpFilename, "smp%03d", g_curScence);
+		sprintf(sdxFilename, "sdx%03d", g_curScence);
 		if ((g_scencePicBuff = LoadFile(smpFilename, NULL, 0)) && (g_scenceIdxBuff = LoadFile(sdxFilename, NULL, 0))) {
 
-			InitialScence(scence);
+			InitialScence(g_curScence);
 
 			//改变音乐
-			if (g_roleData.scences[scence].entranceMusic >= 0) {
+			if (g_roleData.scences[g_curScence].entranceMusic >= 0) {
 				StopXMI();
-				PlayXMI(g_roleData.scences[scence].entranceMusic, -1);
+				PlayXMI(g_roleData.scences[g_curScence].entranceMusic, -1);
 			}
 
 			if (start) {
@@ -1964,30 +1964,17 @@ int InScence(int scence, bool start)
 					ret = -1;
 					break;
 				}
-				/*
 
 				//检查是否位于跳转口, 如是则重新初始化场景
-				if (((sx == RScence[g_curScence].JumpX1) && (sy == RScence[g_curScence].JumpY1)) && (RScence[g_curScence].JumpScence >= 0)) {
-				instruct_14;
-				PreScence = g_curScence;
-				g_curScence = Rscence[g_curScence].JumpScence;
-				if (RScence[PreScence].MainEntranceX1 <> 0) {
-				Sx = RScence[g_curScence].EntranceX;
-				Sy = RScence[g_curScence].EntranceY;
+				if (g_sx == g_roleData.scences[g_curScence].jumpX1 && g_sy == g_roleData.scences[g_curScence].jumpY1 && g_roleData.scences[g_curScence].jumpScence >= 0) {
+				//instruct_14;
+				int jumpScence = g_roleData.scences[g_curScence].jumpScence;
+				if (g_roleData.scences[g_curScence].mainEntranceX1) {
+					g_sx = g_roleData.scences[jumpScence].entranceX;
+					g_sy = g_roleData.scences[jumpScence].entranceY;
 				} else {
-				Sx = RScence[g_curScence].JumpX2;
-				Sy = RScence[g_curScence].JumpY2;
-				}
-
-				if (Sx == 0) {
-				Sx = RScence[g_curScence].JumpX2;
-				Sy = RScence[g_curScence].JumpY2;
-				}
-
-				if (Sx == 0)
-				{
-				Sx = RScence[g_curScence].EntranceX;
-				Sy = RScence[g_curScence].EntranceY;
+					g_sx = g_roleData.scences[jumpScence].jumpX2;
+					g_sy = g_roleData.scences[jumpScence].jumpY2;
 				}
 
 				InitialScence;
@@ -1996,7 +1983,6 @@ int InScence(int scence, bool start)
 				CheckEvent3;
 
 				}
-				*/
 
 
 switch (key) {
@@ -4895,36 +4881,23 @@ void instruct_12()
 }
 
 //亮屏, 在亮屏之前重新初始化场景
-
-void instruct_13()
-	var
-	int i = 0;
-{
-	//for i1=0 to 199 do
-	//for i2=0 to 10 do
-	//g_curScenceEventData[ [i1,i2]=g_curScenceEventData[i1,i2];
-	InitialScence;
-	for i = 0 to 5 do
-	{
-		//Sdl_Delay(5);
-		Redraw;
-		DrawRectangle(0, 0, g_screenSurface.w, g_screenSurface.h, 0, 100 - i * 20);
-		sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
+void CmdScreenFadeIn() { //13
+	int i;
+	for (i = ox100; i >= 0; i-- {
+		ReDraw();
+		DrawRectangle(0, 0, g_screenSurface->w, g_screenSurface->h, 0, i);
+		UpdateScreen();
 	}
 }
 
 //黑屏
-
-void instruct_14()
-	var
-	int i = 0;
+void CmdScreenFadeOut() //14
 {
-	for i = 0 to 10 do
-	{
-		//Redraw;
-		Sdl_Delay(10);
-		DrawRectangle(0, 0, g_screenSurface.w, g_screenSurface.h, 0, i * 10);
-		sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
+	int i;
+	for (i = 0; i < 0x100; i++) {
+		ReDraw();
+		DrawRectangle(0, 0, g_screenSurface->w, g_screenSurface->h, 0, i);
+		UpdateScreen();
 	}
 }
 
