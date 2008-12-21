@@ -104,7 +104,7 @@ typedef struct
 
 typedef struct
 {
-	sint16 id;
+	sint16 index;
 	sint16 num;
 } T_ItemList;
 
