@@ -3,7 +3,7 @@
 *******************************************************************************/
 
 /*******************************************************************************
-* 原作者的话：                                                                 *
+* 原作者s.weyl的话：                                                           *
 *                                                                              *
 * All Heros in Kam Yung's Stories - The Replicated Edition                     *
 *                                                                              *
@@ -13,8 +13,8 @@
 * You can build it by Delphi with JEDI-SDL support.                            *
 *                                                                              *
 * This resouce code file which is not perfect so far,                          *
-* can be modified && rebuilt freely,                                          *
-* || translate it to another programming language.                             *
+* can be modified and rebuilt freely,                                          *
+* or translate it to another programming language.                             *
 * But please keep this section when you want to spread a new vision. Thanks.   *
 * Note: it must not be a good idea to use this as a pascal paradigm.           *
 *                                                                              *
@@ -45,6 +45,7 @@
 #include "const.h"
 #include "typedef.h"
 #include "func.h"
+#include "cmd.h"
 
 /*******************************************************************************
 * Global Variables                                                             *
@@ -96,7 +97,12 @@ T_RGB g_palette[256];
 
 //主地图坐标, 方向, 步数, 是否处于静止
 int g_mStep = 0;
+int g_mRest = 0;
+int g_mShip = 0;
+
 bool g_rest = 0;
+bool g_ship = 0;
+
 int g_ex = 0;
 int g_ey = 0;
 
@@ -125,11 +131,11 @@ sint16 itemList[500] = {0};
 
 //S, D文件数据
 sint16 g_scenceData[SCENCE_NUM][SCENCE_LAYER_NUM][SCENCE_WIDTH][SCENCE_HEIGHT] = {{{{0}}}};
-#define g_curScenceData			(g_scenceData[g_curScence])
+#define g_curScenceData		(g_scenceData[g_curScence])
 
 T_Event g_scenceEventData[SCENCE_NUM][SCENCE_EVENT_NUM];
-#define g_curScenceEventData		(g_scenceEventData[g_curScence])
-#define g_curEventData				(g_curScenceEventData[g_curEvent])
+#define g_curScenceEventData			(g_scenceEventData[g_curScence])
+#define g_curEventData					(g_curScenceEventData[g_curEvent])
 #define CurScenceXYEventData(sx, xy)	(g_curScenceEventData[g_curScenceData[EmScenceLayerEvent][(sx)][(sy)]])
 
 //当前场景数据
@@ -354,11 +360,11 @@ void LoadGame(int slot)
 	LoadFile(grpName, &g_roleData, sizeof(T_RoleData));
 
 	//初始化入口
-	memset(g_entrances, 0, sizeof(g_entrances));
+	memset(g_entrances, 0xff, sizeof(g_entrances));
 	int i;
 	for (i = 0; i < SCENCE_NUM; i++) {
-		g_entrances[g_roleData.scences[i].mainEntranceX1][g_roleData.scences[i].mainEntranceY1] = i;
-		g_entrances[g_roleData.scences[i].mainEntranceX2][g_roleData.scences[i].mainEntranceY2] = i;
+		g_entrances[g_roleData.scences[i].mapEntrance1X][g_roleData.scences[i].mapEntrance1Y] = i;
+		g_entrances[g_roleData.scences[i].mapEntrance2X][g_roleData.scences[i].mapEntrance2Y] = i;
 	}
 
 	if (slot) {
@@ -433,14 +439,22 @@ int PollKey()
 {
 	int key = 0;
 
-	SDL_Event event;			//事件
+	SDL_Event event;
 	if (SDL_PollEvent(&event)) {
-		if (event.type == SDL_QUIT) {
-			Quit();
-		} else if (event.type == SDL_KEYDOWN) {
-			if (event.key.keysym.sym) {
-				key = event.key.keysym.sym;
-			}
+		switch (event.type) {
+			case SDL_QUIT:
+				Quit();
+				break;
+			case SDL_KEYDOWN:
+				if (event.key.keysym.sym) {
+					key = event.key.keysym.sym;
+				}
+				break;
+			case SDL_KEYUP:
+				key = -1;
+				break;
+			default:
+				break;
 		}
 	}
 
@@ -450,20 +464,23 @@ int PollKey()
 //等待任意按键
 int WaitKey()
 {
-	printf("WaitKey: start\n");
-	SDL_Event event;			//事件
+	int key = 0;
+
+	SDL_Event event;
 	while (SDL_WaitEvent(&event)) {
 		if (event.type == SDL_QUIT) {
 			Quit();
 		} else if (event.type == SDL_KEYDOWN) {
 			if (event.key.keysym.sym) {
+				key = event.key.keysym.sym;
 				break;
 			}
+		} else if (event.type == SDL_KEYUP) {
+			key = -1;
 		}
 	}
 
-	printf("WaitKey: end\n");
-	return event.key.keysym.sym;
+	return key;
 }
 
 SDL_Color GetSDLColor(uint8 color)
@@ -629,8 +646,8 @@ T_Position GetScenceBufferXYPos(int sx, int sy)
 	return pos;
 }
 
-//获取场景中坐标在屏幕上的位置
-T_Position GetScenceXYPos(int sx, int sy)
+//获取屏幕原点在场景Pic中的坐标
+T_Position GetScreenPosInScenceBuff(int sx, int sy)
 {
 	T_Position pos = {.x = 0, .y = 0};
 	pos.x = -sx * CELL_WIDTH / 2 + sy * CELL_WIDTH / 2 + SCENCE_PIC_WIDTH / 2 - SCREEN_CENTER_X;
@@ -909,9 +926,7 @@ void DrawFrameRectangle(int x, int y, int w, int h, uint8 frmColor, uint8 insCol
 	//SDL_UnlockSurface(g_screenSurface);
 }
 
-#if 0
-//显示主地图场景于屏幕
-void DrawMap()
+void DrawMapWithoutUpdate()
 {
 	int   i1 = 0;
 	int  i2 = 0;
@@ -920,44 +935,40 @@ void DrawMap()
 	int  x = 0;
 	int y = 0;
 	sint16 temp[MAP_WIDTH][MAP_HEIGHT];
-	TPosition pos;
-
-	if (SDL_MustLock(g_screenSurface)) {
-		SDL_LockSurface(g_screenSurface);
-	}
+	T_Position pos;
 
 	//由上到下绘制, 先绘制中心点靠上的建筑
-	for sum = -29 to 40 do
-		for i = -15 to 15 do
-		{
-			i1 = Mx + i + (sum / 2);
-			i2 = My - i + (sum - sum / 2);
-			Pos = GetMapScenceXYPos(i1, i2, Mx, My);
+	for (sum = -29; sum < 41; sum++) {
+		for (i = -15; i < 16; i++) {
+			i1 = g_mx + i + (sum / 2);
+			i2 = g_my - i + (sum - sum / 2);
+			pos = GetMapScenceXYPos(i1, i2, g_mx, g_my);
 			if ((i1 >= 0) && (i1 < 480) && (i2 >= 0) && (i2 < 480))
 			{
 				if ((sum >= -27) && (sum <= 28) && (i >= -9) && (i <= 9))
 				{
-					DrawMapPic(g_map[i1, i2] / 2, pos.x, pos.y);
-					if (g_surface[i1, i2] > 0)
-						DrawMapPic(g_surface[i1, i2] / 2, pos.x, pos.y);
+					DrawMapPic(g_map[i1][i2] / 2, pos.x, pos.y);
+					if (g_surface[i1][i2] > 0)
+						DrawMapPic(g_surface[i1][i2] / 2, pos.x, pos.y);
 				}
-				temp[i1, i2] = g_building[i1, i2];
-			} else
+				temp[i1][i2] = g_building[i1][i2];
+			} else {
 				DrawMapPic(0, pos.x, pos.y);
-
+			}
 		}
+	}
 
 #if 0
 	for sum = -29 to 40 do
 		for i = -15 to 15 do
 		{
-			i1 = Mx + i + (sum / 2);
-			i2 = My - i + (sum - sum / 2);
+			i1 = g_mx + i + (sum / 2);
+			i2 = g_my - i + (sum - sum / 2);
 			if ((i1 >= 0) && (i1 < 480) && (i2 >= 0) && (i2 < 480))
 			{
 				x = g_buildingY[i1, i2];
 				y = g_buildingX[i1, i2];
-				Pos = GetMapScenceXYPos(x, y, Mx, My);
+				Pos = GetMapScenceXYPos(x, y, g_mx, g_my);
 				if (g_buildingX[i1, i2] > 0) && (((g_buildingX[i1 - 1, i2 - 1] <> g_buildingX[i1, i2]) && (g_buildingX[i1 + 1, i2 + 1] <> g_buildingX[i1, i2]))
 						|| ((g_buildingY[i1 - 1, i2 - 1] <> g_buildingY[i1, i2]) && (g_buildingY[i1 + 1, i2 + 1] <> g_buildingY[i1, i2]))) then
 				{
@@ -970,8 +981,8 @@ void DrawMap()
 				}
 
 				//如在水面上则绘制船的贴图
-				if ((i1 == Mx) && (i2 == My))
-					if ((InShip == 0))
+				if ((i1 == g_mx) && (i2 == g_my))
+					if ((g_ship == 0))
 						if (g_rest == 0)
 							DrawMapPic(WALK_PIC_OFFSET + g_mFace * WALK_PIC_NUM + g_mStep, SCREEN_CENTER_X, SCREEN_CENTER_Y)
 						else
@@ -988,28 +999,30 @@ void DrawMap()
 		}
 #endif
 
-	if (SDL_MustLock(g_screenSurface)) {
-		SDL_UnlockSurface(g_screenSurface);
-	}
 	//SDL_UpdateRect(g_screenSurface, 0,0,g_screenSurface.w,g_screenSurface.h);
 }
-#endif
+
+//显示主地图场景于屏幕
+void DrawMap()
+{
+	DrawMapWithoutUpdate();
+	UpdateScreen();
+}
 
 //判定主地图某个位置能否行走, 是否变成船
-bool GoThrough(int mx, int my, bool* inBoat)
+bool GoThrough(int mx, int my)
 {
 	bool goThrough = FALSE;
 
-	if (inBoat) {
-		goThrough = mx >= 0 && mx < MAP_WIDTH && my >= 0 && my < MAP_HEIGHT;
+	if (mx >= 0 && mx < MAP_WIDTH && my >= 0 && my < MAP_HEIGHT) {
 		goThrough &= g_buildingX[mx][my] == 0;
 		goThrough &= g_map[mx][my] != 838;
 		goThrough &= g_map[mx][my] < 621 || g_map[mx][my] > 670;
-
-		*inBoat = g_map[mx][my] < 358 || g_map[mx][my] > 362;
-		*inBoat &= g_map[mx][my] < 506 || g_map[mx][my] > 670;
-		*inBoat &= g_map[mx][my] < 1016 || g_map[mx][my] > 1022;
 	}
+
+	g_ship = g_map[mx][my] < 358 || g_map[mx][my] > 362;
+	g_ship &= g_map[mx][my] < 506 || g_map[mx][my] > 670;
+	g_ship &= g_map[mx][my] < 1016 || g_map[mx][my] > 1022;
 
 	printf("GoThrough: %d\n", goThrough);
 	return goThrough;
@@ -1021,42 +1034,20 @@ bool GoThroughScence(int sx, int sy)
 	bool goThroughScence = FALSE;
 
 	if (sx >= 0 && sx < SCENCE_WIDTH && sy >= 0 && sy < SCENCE_HEIGHT) {
-	printf("GoThroughScence0: %d\n", goThroughScence);
 		goThroughScence = g_curScenceData[EmScenceLayerBuilding][sx][sy] == 0;
-	printf("GoThroughScence1: %d\n", goThroughScence);
 		goThroughScence &= g_curScenceData[EmScenceLayerEvent][sx][sy] < 0
 			|| !CurScenceXYEventData(sx, sy).block;
-	printf("GoThroughScence2: %d\n", goThroughScence);
 
 		goThroughScence &= g_curScenceData[EmScenceLayerGround][sx][sy]
 			< 358 || g_curScenceData[EmScenceLayerGround][sx][sy] > 362;
-	printf("GoThroughScence3: %d\n", goThroughScence);
 		goThroughScence &= g_curScenceData[EmScenceLayerGround][sx][sy]
 			< 522 || g_curScenceData[EmScenceLayerGround][sx][sy] > 1022;
-	printf("GoThroughScence4: %d\n", goThroughScence);
 		goThroughScence &= g_curScenceData[EmScenceLayerGround][sx][sy]
 			< 1324 || g_curScenceData[EmScenceLayerGround][sx][sy] > 1330;
-	printf("GoThroughScence5: %d\n", goThroughScence);
 		goThroughScence &= g_curScenceData[EmScenceLayerGround][sx][sy] != 1348;
-	printf("GoThroughScence6: %d\n", goThroughScence);
 	}
 
-	printf("GoThroughScence: %d\n", goThroughScence);
 	return goThroughScence;
-}
-
-//将场景映像画到屏幕
-void DrawScenceOnScreen(int x, int y)
-{
-	int maxW = g_scenceSurface->w - x;
-	int maxH = g_scenceSurface->h - y;
-	SDL_Rect rect = {
-		x = x, .y = y,
-		.w = SCREEN_WIDTH < maxW ? SCREEN_WIDTH : maxW,
-		.h = SCREEN_HEIGHT < maxH ? SCREEN_HEIGHT : maxH
-	};
-
-	SDL_BlitSurface(g_scenceSurface, &rect, g_screenSurface, &(SDL_Rect){0, 0, SCREEN_WIDTH, SCREEN_HEIGHT});
 }
 
 //将战场映像画到屏幕
@@ -1073,8 +1064,53 @@ void DrawBFieldOnScreen(int x, int y)
 	SDL_BlitSurface(g_bfSurface, &rect, g_screenSurface, &(SDL_Rect){0, 0, SCREEN_WIDTH, SCREEN_HEIGHT});
 }
 
-//画场景到屏幕
-void DrawScence()
+//画不含主角的场景(与DrawScenceByCenter相同)
+void DrawScenceWithoutRole(int sx, int sy)
+{
+	T_Position pos = GetScreenPosInScenceBuff(sx, sy);
+	int maxW = g_scenceSurface->w - pos.x;
+	int maxH = g_scenceSurface->h - pos.y;
+	SDL_Rect rect = {
+		.x = pos.x, .y = pos.y,
+		.w = SCREEN_WIDTH < maxW ? SCREEN_WIDTH : maxW,
+		.h = SCREEN_HEIGHT < maxH ? SCREEN_HEIGHT : maxH
+	};
+
+	SDL_BlitSurface(g_scenceSurface, &rect, g_screenSurface, &(SDL_Rect){0, 0, SCREEN_WIDTH, SCREEN_HEIGHT});
+}
+
+//画主角于场景
+void DrawRoleOnScence(int x, int y)
+{
+	int  sx = 0;
+	int  sy = 0;
+	
+	T_Position pos = GetMapScenceXYPos(g_sx, g_sy, x, y);
+	DrawScencePic(WALK_PIC_OFFSET + g_sFace * (WALK_PIC_NUM) + g_sStep, pos.x, pos.y - g_curScenceData[EmScenceLayerEvent][g_sx][g_sy]);
+	//重画主角附近的部分, 考虑遮挡
+	for (sy = g_sy + 1; sy < SCENCE_HEIGHT; sy++) {
+		for (sx = g_sx + 1; sx < SCENCE_WIDTH; sx++) {
+			T_Position pos1 = GetMapScenceXYPos(sx, sy, x, y);
+			if (pos.x < SCREEN_WIDTH || pos.y < SCREEN_HEIGHT) {
+				DrawScencePic(g_curScenceData[EmScenceLayerGround][sx][sy] / 2, pos1.x, pos1.y);
+
+				if (g_curScenceData[EmScenceLayerBuilding][sx][sy] > 0 && (sy > g_sy || sx > g_sx)) {
+					DrawScencePic(g_curScenceData[EmScenceLayerBuilding][sx][sy] / 2, pos1.x, pos1.y - g_curScenceData[EmScenceLayerBuildingOffset][sx][sy]);
+				}
+
+				if (g_curScenceData[EmScenceLayerSky][sx][sy] > 0 && (sy > g_sy || sx > g_sx)) {
+					DrawScencePic(g_curScenceData[EmScenceLayerSky][sx][sy] / 2, pos1.x, pos1.y - g_curScenceData[EmScenceLayerSkyOffset][sx][sy]);
+				}
+
+				if (g_curScenceData[EmScenceLayerEvent][sx][sy] >= 0 && (sy > g_sy || sx > g_sx) && CurScenceXYEventData(sx, xy).pic1 > 0) {
+					DrawScencePic(CurScenceXYEventData(sx, xy).pic1 / 2, pos1.x, pos1.y - g_curScenceData[EmScenceLayerSky][sx][sy]);
+				}
+			}
+		}
+	}
+}
+
+void DrawScenceWithoutUpdate()
 {
 	//先画无主角的场景, 再画主角
 	//如在事件中, 则以g_ex, g_ey为中心, 否则以主角坐标为中心
@@ -1091,15 +1127,13 @@ void DrawScence()
 			DrawRoleOnScence(g_ex, g_ey);
 		}
 	}
-
-	UpdateScreen();
 }
 
-//画不含主角的场景(与DrawScenceByCenter相同)
-void DrawScenceWithoutRole(int sx, int sy)
+//画场景到屏幕
+void DrawScence()
 {
-	T_Position pos = GetScenceXYPos(sx, sy);
-	DrawScenceOnScreen(pos.x, pos.y);
+	DrawScenceWithoutUpdate();
+	UpdateScreen();
 }
 #if 0
 
@@ -1131,84 +1165,30 @@ void DrawBFieldWithoutRole(x, int y = 0)()
 }
 #endif
 
-//画主角于场景
-void DrawRoleOnScence(int x, int y)
-{
-	int  sx = 0;
-	int  sy = 0;
-	
-	T_Position pos = GetMapScenceXYPos(g_sx, g_sy, x, y);
-	DrawScencePic(WALK_PIC_OFFSET + g_sFace * (WALK_PIC_NUM + 1) + 1 + g_sStep, pos.x, pos.y - g_curScenceData[EmScenceLayerEvent][g_sx][g_sy]);//, pos.x - 20, pos.y - 60 - g_curScenceData[EmScenceLayerEvent][g_sx][g_sy]);//, 40, 60);
-	//重画主角附近的部分, 考虑遮挡
-	for (sy = g_sy; sy <SCENCE_HEIGHT; sy++) {
-		for (sx = g_sx; sx < SCENCE_WIDTH; sx++) {
-			T_Position pos1 = GetMapScenceXYPos(sx, sy, x, y);
-
-			if ((sx > g_sx) && (sy > g_sy))
-				DrawScencePic(g_curScenceData[EmScenceLayerGround][sx][sy] / 2, pos1.x, pos1.y);//, pos.x - 20, pos.y - 60 - g_curScenceData[ 4, g_sx, g_sy], 40, 60);
-			if (g_curScenceData[EmScenceLayerBuilding][sx][sy] > 0 && (sy > g_sy || sx > g_sx)) {
-				DrawScencePic(g_curScenceData[EmScenceLayerBuilding][sx][sy] / 2, pos1.x, pos1.y - g_curScenceData[EmScenceLayerBuildingOffset][sx][sy]);// pos.x - 20, pos.y - 60 - g_curScenceData[ 4, g_sx, g_sy], 40, 60);
-			}
-
-			if (g_curScenceData[EmScenceLayerSky][sx][sy] > 0 && (sy > g_sy || sx > g_sx)) {
-				DrawScencePic(g_curScenceData[EmScenceLayerSky][sx][sy] / 2, pos1.x, pos1.y - g_curScenceData[EmScenceLayerSkyOffset][sx][sy]);//, pos.x - 20, pos.y - 60 - g_curScenceData[ 4, g_sx, g_sy], 40, 60);
-			}
-
-			if (g_curScenceData[EmScenceLayerEvent][sx][sy] >= 0 && (sy > g_sy || sx > g_sx) && CurScenceXYEventData(sx, xy).pic1 > 0)
-				DrawScencePic(CurScenceXYEventData(sx, xy).pic1 / 2, pos1.x, pos1.y - g_curScenceData[EmScenceLayerSky][sx][sy]);//, pos.x - 20, pos.y - 60 - g_curScenceData[ 4, g_sx, g_sy], 40, 60);
-		}
-	}
-}
-
-#if 0
 //画不含边框的矩形, 用于对话和黑屏
-int void DrawRectangle(x = 0;
-		int  y = 0;
-		int  w = 0;
-		int h = 0; colorin: Uint32; int alphe = 0)()
-var
-int   i1 = 0;
-int i2 = 0;
-pix, pix1, pix2, pix3, pix4, color1, color2, color3, color4: Uint32;
+void DrawRectangle(int x, int y, int w, int h, uint8 color, uint8 alpha)
 {
-	if ((SDL_MustLock(g_screenSurface)))
-	{
-		SDL_LockSurface(g_screenSurface);
-	}
-	for i1 = x to x + w do
-		for i2 = y to y + h do
-		{
-			pix = getpixel(g_screenSurface, i1, i2);
-			pix1 = pix && 0xFF; color1 = colorin && 0xFF;
-			pix2 = pix shr 8 && 0xFF; color2 = colorin shr 8 && 0xFF;
-			pix3 = pix shr 16 && 0xFF; color3 = colorin shr 16 && 0xFF;
-			pix4 = pix shr 24 && 0xFF; color4 = colorin shr 24 && 0xFF;
-			pix1 = (alphe * color1 + (100 - alphe) * pix1) / 100;
-			pix2 = (alphe * color2 + (100 - alphe) * pix2) / 100;
-			pix3 = (alphe * color3 + (100 - alphe) * pix3) / 100;
-			pix4 = (alphe * color4 + (100 - alphe) * pix4) / 100;
-			pix = pix1 + pix2 shl 8 + pix3 shl 16 + pix4 shl 24;
-			putpixel(g_screenSurface, i1, i2, pix);
-		}
-	if ((SDL_MustLock(g_screenSurface)))
-	{
-		SDL_UnlockSurface(g_screenSurface);
-	}
-
+	boxColor(g_screenSurface, x, y, x + w, y + h, COLORA(color, alpha));
 }
 
 //重画屏幕, sdl_updaterect(g_screenSurface,0,0,g_screenSurface.w,g_screenSurface.h)可显示
-void Redraw()
+void RedrawWithoutUpdate()
 {
 	switch (g_inGame) {
-0: DrawMMap;
-1: DrawScence;
-2: DrawWholeBField;
-3: display_img("open.png", 0, 0);
+		case EmInGameMap:
+			//DrawMapWithoutUpdate();
+			break;
+		case EmInGameScence:
+			DrawScenceWithoutUpdate();
+			break;
+		case EmInGameBattleField:
+			//*DrawWholeBField();
+			break;
+		case EmInGameTitle:
+		default:
+			break;
 	}
-
 }
-#endif
 
 //生成场景映像
 void InitialScence()
@@ -1462,13 +1442,8 @@ void Start()
 	ReadFiles();
 
 	memset(g_entrances, 0, sizeof(g_entrances));
-
-	//display_img("open.png", 0, 0);
-
-	//int g_mStep = 0;
-
+	g_mStep = 0;
 	g_fullScreen = FALSE;
-
 	EmMainMenu menu = EmMainMenuNew;
 
 	byte* bigBuffer = NULL;
@@ -1589,253 +1564,142 @@ void InitialRole()
 	hero->phyPower = MAX_PHYSICAL_POWER;
 }
 
-#if 0
-
 //于主地图行走
-
-void Walk()
-	var
-	word: array[0..10] of Uint16;
-	int   x = 0;
-	int  y = 0;
-	int  walking = 0;
-	int  Mx1 = 0;
-	int  My1 = 0;
-	int  Mx2 = 0;
-	int My2 = 0;
-	now, next_time: uint32;
+void InMap()
 {
-	next_time = sdl_getticks;
-	g_inGame = 0;
-	walking = 0;
-	DrawMMap;
-	StopMp3;
-	PlayMp3(16, -1);
-	g_rest = 0;
+	uint32 next_time = SDL_GetTicks() + 3000;
+	g_inGame = EmInGameMap;
+
+	CmdScreenFadeIn(NULL);
+
+	g_rest = FALSE;
+	int lastMx = g_mx;
+	int lastMy = g_my;
+
+	//PlayMp3(16, -1);
+
 	//事件轮询(并非等待)
-	while SDL_PollEvent(@event) >= 0 do
-	{
+	while (TRUE) {
 		//如果当前处于标题画面, 则退出, 用于战斗失败
-		if (g_inGame >= 3)
-		{
+		//***********
+
+	int mx = g_mx;
+	int my = g_my;
+	switch (g_sFace) {
+		case 0:
+			mx--;
 			break;
-		}
-		//主地图动态效果, 实际仅有主角的动作
-		now = sdl_getticks;
-
-		if ((integer(now - next_time) > 0) && (g_inGame == 0))
-		{
-			if ((Mx2 == Mx) && (My2 == My))
-			{
-				g_rest = 1;
-				g_mStep = g_mStep + 1;
-				if (g_mStep > 6) g_mStep = 0;
-			}
-			Mx2 = Mx;
-			My2 = My;
-			if (g_rest == 1)
-				next_time = now + 500
-			else
-				next_time = now + 2000;
-
-			DrawMMap;
-			SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-			//else next_time=next_time
-		}
-		//如果主角正在行走, 则依据鼠标位置移动主角, 仅用于使用鼠标行走
-		if (walking == 1)
-		{
-			g_rest = 0;
-			sdl_getmousestate(x, y);
-			if ((x < SCREEN_CENTER_X) && (y < SCREEN_CENTER_Y)) g_mFace = 2;
-			if ((x > SCREEN_CENTER_X) && (y < SCREEN_CENTER_Y)) g_mFace = 0;
-			if ((x < SCREEN_CENTER_X) && (y > SCREEN_CENTER_Y)) g_mFace = 3;
-			if ((x > SCREEN_CENTER_X) && (y > SCREEN_CENTER_Y)) g_mFace = 1;
-			Mx1 = Mx;
-			My1 = My;
-			switch (g_mFace) {
-0: Mx1 = Mx1 - 1;
-1: My1 = My1 + 1;
-2: My1 = My1 - 1;
-3: Mx1 = Mx1 + 1;
-			}
-			g_mStep = g_mStep + 1;
-			if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
-			if (GoThrough(Mx1, My1) == true)
-			{
-				Mx = Mx1;
-				My = My1;
-			}
-			//每走一步均重画屏幕, 并检测是否处于某场景入口
-			DrawMMap;
-			//sdl_delay(5);
-			SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-			CheckEntrance;
-		}
-
-		switch (event.type) {
-SDL_QUITEV:
-			if (messagedlg("Are you sure to quit?", mtConfirmation, [mbOk, mbCancel], 0) == idOK) Quit;
-			//方向键使用压下按键事件
-SDL_KEYDOWN:
-			{
-				if ((event.key.keysym.sym == sdlk_left))
-				{
-					g_rest = 0;
-					g_mFace = 2;
-					g_mStep = g_mStep + 1;
-					if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
-					if GoThrough(Mx, My - 1) == true
-						then
-						{
-							My = My - 1;
-						}
-					DrawMMap;
-					//sdl_delay(5);
-					SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-					CheckEntrance;
-				}
-				if ((event.key.keysym.sym == sdlk_right))
-				{
-					g_rest = 0;
-					g_mFace = 1;
-					g_mStep = g_mStep + 1;
-					if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
-					if GoThrough(Mx, My + 1) == true
-						then
-						{
-							My = My + 1;
-						}
-					DrawMMap;
-					//sdl_delay(5);
-					SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-					CheckEntrance;
-				}
-				if ((event.key.keysym.sym == sdlk_up))
-				{
-					g_rest = 0;
-					g_mFace = 0;
-					g_mStep = g_mStep + 1;
-					if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
-					if GoThrough(Mx - 1, My) == true
-						then
-						{
-							Mx = Mx - 1;
-						}
-					DrawMMap;
-					//sdl_delay(5);
-					SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-					CheckEntrance;
-				}
-				if ((event.key.keysym.sym == sdlk_down))
-				{
-					g_rest = 0;
-					g_mFace = 3;
-					g_mStep = g_mStep + 1;
-					if (g_mStep > WALK_PIC_NUM) g_mStep = 0;
-					if GoThrough(Mx + 1, My) == true
-						then
-						{
-							Mx = Mx + 1;
-						}
-					DrawMMap;
-					//sdl_delay(5);
-					SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-					CheckEntrance;
-				}
-			}
-			//功能键(esc)使用松开按键事件
-SDL_KEYUP:
-			{
-				if ((event.key.keysym.sym == sdlk_escape))
-				{
-					//event.key.keysym.sym=0;
-					MenuEsc;
-					walking = 0;
-				}
-				if ((event.key.keysym.sym == sdlk_return) && (event.key.keysym.modifier == kmod_lalt))
-				{
-					if (g_fullScreen)
-						g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_SWSURFACE || SDL_DOUBLEBUF || SDL_ANYFORMAT)
-					else
-						g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_FULLSCREEN);
-					g_fullScreen = 1 - g_fullScreen;
-				}
-			}
-			//如按下鼠标左键, 设置状态为行走
-Sdl_mousebuttondown:
-			{
-				if (event.button.button == sdl_button_left)
-				{
-					walking = 1;
-				}
-			}
-			//如松开鼠标左键, 设置状态为不行走
-			//右键则呼出系统选单
-Sdl_mousebuttonup:
-			{
-				if (event.button.button == sdl_button_right) menuesc;
-				if (event.button.button == sdl_button_left)
-				{
-					walking = 0;
-				}
-			}
-		}
-		SDL_Delay(9);
-		event.key.keysym.sym = 0;
-
+		case 1:
+			my++;
+			break;
+		case 2:
+			my--;
+			break;
+		case 3:
+			mx++;
+			break;
+		default:
+			break;
 	}
 
+	if (GoIn(mx, my)) {
+		CmdScreenFadeOut(NULL);
+		InScence(g_entrances[mx][my], EmInScenceEnter);
+		g_inGame = EmInGameMap;
+		CmdScreenFadeIn(NULL);
+	}
 
+	//主地图动态效果, 实际仅有主角的动作
+	uint32 now = SDL_GetTicks();
+	if (now - next_time > 0) {
+		if ((lastMx == g_mx) && (lastMy == g_my))
+		{
+			g_rest = TRUE;
+			if (g_mRest > REST_PIC_NUM) {
+				g_mRest = 0;
+				g_rest = FALSE;
+			}
+		}
+
+		lastMx = g_mx;
+		lastMy = g_my;
+
+		if (g_rest) {
+			next_time = now + 500;
+		} else {
+			next_time = now + 3000;
+		}
+	}
+
+	DrawMap();
+
+	int key = PollKey();
+	switch (key) {
+		case SDLK_ESCAPE:
+			//***MenuEsc;
+			break;
+		case SDLK_UP:
+			g_rest = FALSE;
+			g_mFace = 0;
+			if (++g_mStep >= WALK_PIC_NUM) g_mStep = 1;
+			if (GoThrough(g_mx - 1, g_my)) {
+				g_mx--;
+			}
+			break;
+		case SDLK_RIGHT:
+			g_rest = FALSE;
+			g_mFace = 1;
+			if (++g_mStep >= WALK_PIC_NUM) g_mStep = 1;
+			if (GoThrough(g_mx, g_my + 1)) {
+				g_my++;
+			}
+			break;
+		case SDLK_LEFT:
+			g_rest = FALSE;
+			g_mFace = 2;
+			if (++g_mStep >= WALK_PIC_NUM) g_mStep = 1;
+			if (GoThrough(g_mx, g_my - 1)) {
+				g_my--;
+			}
+			break;
+		case SDLK_DOWN:
+			g_rest = FALSE;
+			g_mFace = 3;
+			if (++g_mStep >= WALK_PIC_NUM) g_mStep = 1;
+			if (GoThrough(g_mx + 1, g_my)) {
+				g_mx++;
+			}
+			break;
+		default:
+			break;
+	}
+	}
 }
 
-//Check able || not to ertrance a scence.
 //检测是否处于某入口, 并是否达成进入条件
-
-void CheckEntrance()
-	var
-	int   x = 0;
-	int  y = 0;
-	int  i = 0;
-	int snum = 0;
-CanEntrance: boolean;
+bool GoIn(int mx, int my)
 {
-	x = Mx;
-	y = My;
-	switch (g_mFace) {
-0: x = x - 1;
-1: y = y + 1;
-2: y = y - 1;
-3: x = x + 1;
-	}
-	if ((g_entrances[x, y] >= 0))
-	{
-		canentrance = false;
-		snum = g_entrances[x, y];
-		if ((RScence[snum].EnCondition == 0)) canentrance = true;
-		//是否有人轻功超过70
-		if ((RScence[snum].EnCondition == 2))
-			for i = 0 to 5 do
-				if (teamlist[i] >= 0)
-					if (Rrole[teamlist[i]].Speed > 70)
-						canentrance = true;
-		if (canentrance == true)
-		{
-			instruct_14;
-			g_curScence = g_entrances[x, y];
-			g_sFace = g_mFace;
-			g_mFace = 3 - g_mFace;
-			g_sStep = 0;
-			Sx = RScence[g_curScence].EntranceX;
-			Sy = RScence[g_curScence].EntranceY;
-			//如达成条件, 进入场景并初始化场景坐标
-			InScence(0);
-			WaitKey;
+	bool goIn = FALSE;
+
+	int scence = -1;
+	if ((scence = g_entrances[mx][my] >= 0)) {
+		if ((g_roleData.scences[scence].enCondition == 0)) {
+			goIn = TRUE;
+		} else if ((g_roleData.scences[scence].enCondition == 2)) { //是否有人轻功超过70
+			int i;
+			for (i = 0; i < MAX_TEAM_ROLE; i++) {
+				if (g_roleData.common.team[i] >= 0 && g_roleData.roles[g_roleData.common.team[i]].speed > 70) {
+					goIn = TRUE;
+					break;
+				}
+			}
 		}
-		//instruct_13;
 	}
 
+	return goIn;
 }
+
+#if 0
 
 	void UpdateScenceAmi()
 		var
@@ -1875,19 +1739,28 @@ CanEntrance: boolean;
 void InGame(bool start)
 {
 	if (start) {
-		InScence(SCENCE_HOME, TRUE);
+		InScence(SCENCE_HOME, EmInScenceStart);
+
+		g_mx = g_roleData.scences[SCENCE_HOME].mapEntrance1X;
+		g_my = g_roleData.scences[SCENCE_HOME].mapEntrance1Y;
 	}
+
+	InMap();
 }
 
 //Walk in a scence, the returned value is the scence number when you exit. If it is -1.
 //InScence(1) means the new game.
 //在内场景行走, 如参数为1表示新游戏
-int InScence(int scence, bool start)
+int InScence(int scence, EmInScence inScence)
 {
-	//UpDate=SDL_CreateThread(@UpdateScenceAmi, NULL);
-	//LockScence=false;
 	int ret = 0;
-	//just = 0;
+
+	int lastSx = g_sx;
+	int lastSy = g_sy;
+	uint32* lastIdxBuff = g_scenceIdxBuff;
+	byte* lastPicBuff = g_scencePicBuff;
+	SDL_Surface* lastSurface = g_scenceSurface;
+
 	if ((g_scenceSurface = SDL_CreateRGBSurface(SDL_HWSURFACE, SCENCE_PIC_WIDTH, SCENCE_PIC_HEIGHT,
 					32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x00000000))) {
 		uint32 next_time = SDL_GetTicks();
@@ -1901,38 +1774,74 @@ int InScence(int scence, bool start)
 		char sdxFilename[PATH_MAX];
 		sprintf(smpFilename, "smp%03d", g_curScence);
 		sprintf(sdxFilename, "sdx%03d", g_curScence);
-		if ((g_scencePicBuff = LoadFile(smpFilename, NULL, 0)) && (g_scenceIdxBuff = LoadFile(sdxFilename, NULL, 0))) {
 
-			InitialScence(g_curScence);
-
+		if ((g_scenceIdxBuff = LoadFile(sdxFilename, NULL, 0)) && (g_scencePicBuff = LoadFile(smpFilename, NULL, 0))) {
 			//改变音乐
 			if (g_roleData.scences[g_curScence].entranceMusic >= 0) {
 				StopXMI();
 				PlayXMI(g_roleData.scences[g_curScence].entranceMusic, -1);
 			}
 
-			if (start) {
-				g_sx = GAME_START_SX;
-				g_sy = GAME_START_SY;
-				g_ex = g_sx;
-				g_ey = g_sy;
-				g_curEvent = EVENT_GAME_START;
-				DrawScence();
-				//Callevent(EVENT_GAME_START);
-				g_curEvent = EVENT_NOTHING;
+			switch (inScence) {
+				case EmInScenceStart:
+					g_sx = GAME_START_SX;
+					g_sy = GAME_START_SY;
+					g_ex = g_sx;
+					g_ey = g_sy;
+					break;
+				case EmInScenceJump:
+					g_sx = g_roleData.scences[g_curScence].jumpEntranceX;
+					g_sy = g_roleData.scences[g_curScence].jumpEntranceY;
+					break;
+				case EmInScenceEnter:
+				default:
+					g_sx = g_roleData.scences[g_curScence].entranceX;
+					g_sy = g_roleData.scences[g_curScence].entranceY;
+					break;
 			}
 
-			DrawScence();
-			ShowScenceName(g_curScence);
+			InitialScence(g_curScence);
+			CmdScreenFadeIn(NULL);
+
+			if (inScence == EmInScenceStart) {
+				g_curEvent = EVENT_GAME_START;
+				//**Callevent(EVENT_GAME_START);
+				g_curEvent = EVENT_NOTHING;
+			} else {
+				ShowScenceName(g_curScence);
+			}
+
+				//是否有第3类事件位于场景入口
+				//***CheckEvent3;
 
 			while (TRUE) {
+				//检查是否位于出口
+				if ((g_sx == g_roleData.scences[g_curScence].exitX[0] && g_sy == g_roleData.scences[g_curScence].exitY[0])
+						|| (g_sx == g_roleData.scences[g_curScence].exitX[1] && g_sy == g_roleData.scences[g_curScence].exitY[1])
+						|| (g_sx == g_roleData.scences[g_curScence].exitX[2] && g_sy == g_roleData.scences[g_curScence].exitY[2])) {
+					g_inGame = EmInGameMap;
+					ret = -1;
+					break;
+				}
+
+				//检查是否跳转
+				if (g_sx == g_roleData.scences[g_curScence].jumpX && g_sy == g_roleData.scences[g_curScence].jumpY && g_roleData.scences[g_curScence].jumpScence >= 0) {
+					CmdScreenFadeOut(NULL);
+
+					EmInScence jumpInScence =
+						g_roleData.scences[g_curScence].mapEntrance1X
+						? EmInScenceEnter : EmInScenceJump;
+					InScence(g_roleData.scences[g_curScence].jumpScence, jumpInScence);
+
+					g_curScence = scence;
+
+					InitialScence(g_curScence);
+					CmdScreenFadeIn(NULL);
+
+					ShowScenceName(g_curScence);
+				}
+
 				DrawScence();
-				//是否有第3类事件位于场景入口
-				//CheckEvent3;
-				int key = PollKey();
-				//if (g_inGame != EmInGameScence) {
-					//break;
-				//}
 
 				/*//场景内动态效果
 				  now = sdl_getticks;
@@ -1956,126 +1865,102 @@ int InScence(int scence, bool start)
 				}
 				*/
 
-				//检查是否位于出口, 如是则退出
-				if ((g_sx == g_roleData.scences[g_curScence].exitX[0] && g_sy == g_roleData.scences[g_curScence].exitY[0])
-					|| (g_sx == g_roleData.scences[g_curScence].exitX[1] && g_sy == g_roleData.scences[g_curScence].exitY[1])
-					|| (g_sx == g_roleData.scences[g_curScence].exitX[2] && g_sy == g_roleData.scences[g_curScence].exitY[2])) {
-					g_inGame = EmInGameMap;
-					ret = -1;
-					break;
+				int sx = g_sx;
+				int sy = g_sy;
+				int key = PollKey();
+				switch (key) {
+					case KEYUP:
+						g_sStep = 0;
+						break;
+					case SDLK_ESCAPE:
+						//*********MenuEsc;
+						break;
+					case SDLK_RETURN:
+					case SDLK_SPACE:
+						sx = g_sx;
+						sy = g_sy;
+						switch (g_sFace) {
+							case 0:
+								sx--;
+								break;
+							case 1:
+								sy++;
+								break;
+							case 2:
+								sy--;
+								break;
+							case 3:
+								sx++;
+								break;
+							default:
+								break;
+						}
+
+						//如有则调用事件
+						if (g_curScenceData[EmScenceLayerEvent][sx][sy] >= 0) {
+							g_curEvent = g_curScenceData[EmScenceLayerEvent][sx][sy];
+							if (g_curEventData.actionEvent >= 0) {
+								//CallEvent(CurScenceXYEventData(sx, sy).g_curEventData.actionEvent);
+							}
+							g_curEvent = EVENT_NOTHING;
+						}
+						break;
+					case SDLK_UP:
+						g_sFace = 0;
+						if (++g_sStep >= WALK_PIC_NUM) g_sStep = 1;
+						if (GoThroughScence(g_sx - 1, g_sy)) {
+							g_sx--;
+						}
+						break;
+					case SDLK_RIGHT:
+						g_sFace = 1;
+						if (++g_sStep >= WALK_PIC_NUM) g_sStep = 1;
+						if (GoThroughScence(g_sx, g_sy + 1)) {
+							g_sy++;
+						}
+						break;
+					case SDLK_LEFT:
+						g_sFace = 2;
+						if (++g_sStep >= WALK_PIC_NUM) g_sStep = 1;
+						if (GoThroughScence(g_sx, g_sy - 1)) {
+							g_sy--;
+						}
+						break;
+					case SDLK_DOWN:
+						g_sFace = 3;
+						if (++g_sStep >= WALK_PIC_NUM) g_sStep = 1;
+						if (GoThroughScence(g_sx + 1, g_sy)) {
+							g_sx++;
+						}
+						break;
+					default:
+						break;
 				}
+			}
 
-				//检查是否位于跳转口, 如是则重新初始化场景
-				if (g_sx == g_roleData.scences[g_curScence].jumpX1 && g_sy == g_roleData.scences[g_curScence].jumpY1 && g_roleData.scences[g_curScence].jumpScence >= 0) {
-				//instruct_14;
-				int jumpScence = g_roleData.scences[g_curScence].jumpScence;
-				if (g_roleData.scences[g_curScence].mainEntranceX1) {
-					g_sx = g_roleData.scences[jumpScence].entranceX;
-					g_sy = g_roleData.scences[jumpScence].entranceY;
-				} else {
-					g_sx = g_roleData.scences[jumpScence].jumpX2;
-					g_sy = g_roleData.scences[jumpScence].jumpY2;
-				}
+			if (g_roleData.scences[g_curScence].exitMusic >= 0) {
+				StopXMI();
+				PlayXMI(g_roleData.scences[g_curScence].exitMusic, -1);
+			}
 
-				InitialScence;
-				Drawscence;
-				ShowScenceName(g_curScence);
-				CheckEvent3;
-
-				}
-
-
-switch (key) {
-	case SDLK_ESCAPE:
-		//*********MenuEsc;
-		//walking = 0;
-		break;
-		/*
-		//检查是否按下Left Alt+Enter, 是则切换全屏/窗口(似乎并不经常有效)
-		if ((event.key.keysym.sym == sdlk_return) && (event.key.keysym.modifier == kmod_lalt))
-		{
-		if (g_fullScreen == 1)
-		g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_SWSURFACE || SDL_DOUBLEBUF || SDL_ANYFORMAT)
-		else
-		g_screenSurface = SDL_SetVideoMode(SCREEN_CENTER_X * 2, SCREEN_CENTER_Y * 2, 32, SDL_FULLSCREEN);
-		g_fullScreen = 1 - g_fullScreen;
+			CmdScreenFadeOut(NULL);
+			free(g_scenceIdxBuff);
+			free(g_scencePicBuff);
 		}
-		*/
-		//按下回车或空格, 检查面对方向是否有第1类事件
-	case SDLK_RETURN:
-	case SDLK_SPACE:
-		/*
-		   x = Sx;
-		   y = Sy;
-		   switch (g_sFace) {
-0: x = x - 1;
-1: y = y + 1;
-2: y = y - 1;
-3: x = x + 1;
-}
-	//如有则调用事件
-	if (g_curScenceData[ 3, x, y] >= 0) {
-	g_curEvent = g_curScenceData[ 3, x, y];
-	walking = 0;
-	if (g_curEventData[2] >= 0) callevent(g_curScenceEventData[ g_curScenceData[ 3, x, y], 2]);
-	}
-	g_curEvent = -1;
 
-*/
-	break;
-	case SDLK_UP:
-	g_sFace = 0;
-	if (++g_sStep >= WALK_PIC_NUM) g_sStep = 0;
-	if (GoThroughScence(g_sx - 1, g_sy)) {
-		g_sx--;
+		SDL_FreeSurface(g_scenceSurface);
 	}
 
-break;
-case SDLK_RIGHT:
-g_sFace = 1;
-if (++g_sStep >= WALK_PIC_NUM) g_sStep = 0;
-if (GoThroughScence(g_sx, g_sy + 1)) {
-	g_sy++;
-}
+	g_sx = lastSx;
+	g_sy = lastSy;
+	g_scenceIdxBuff = lastIdxBuff;
+	g_scencePicBuff = lastPicBuff;
 
-break;
-case SDLK_LEFT:
-g_sFace = 2;
-if (++g_sStep >= WALK_PIC_NUM) g_sStep = 0;
-if (GoThroughScence(g_sx, g_sy - 1)) {
-	g_sy--;
-}
+	g_scenceSurface = lastSurface;
 
-break;
-case SDLK_DOWN:
-g_sFace = 3;
-if (++g_sStep >= WALK_PIC_NUM) g_sStep = 0;
-if (GoThroughScence(g_sx + 1, g_sy)) {
-	g_sx++;
-}
+	g_mFace = g_sFace = 3 - g_sFace;
 
-break;
-}
-}
-/*
-
-   instruct_14; //黑屏
-
-   ReDraw;
-   SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-   if (Rscence[g_curScence].ExitMusic >= 0)
-   {
-   stopmp3;
-   playmp3(Rscence[g_curScence].ExitMusic, -1);
-   }
-   */
-free(g_scenceIdxBuff);
-free(g_scencePicBuff);
-}
-
-SDL_FreeSurface(g_scenceSurface);
-}
-return ret;
+	return ret;
 }
 
 void ShowScenceName(int scence)
@@ -4859,47 +4744,51 @@ int menu = 0;
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 
 }
+#endif
 
 //住宿
-
-void instruct_12()
-	var
-	int   i = 0;
-	int rnum = 0;
+void CmdSleep(sint16** cmd) //12
 {
-	for i = 0 to 5 do
-	{
-		rnum = Teamlist[i];
-		if (not ((RRole[rnum].Hurt > 33) || (RRole[rnum].Poision > 0)))
-		{
-			RRole[rnum].CurrentHP = RRole[rnum].MaxHP;
-			RRole[rnum].CurrentMP = RRole[rnum].MaxMP;
-			RRole[rnum].PhyPower = MAX_PHYSICAL_POWER;
+	if (cmd) (*cmd)++;
+
+	int i;
+	for (i = 0; i < MAX_TEAM_ROLE; i++) {
+		int role = g_roleData.common.team[i];
+		if (g_roleData.roles[role].wound < WOUND_SERIOUS && g_roleData.roles[role].poisioning == 0) {
+			g_roleData.roles[role].life = g_roleData.roles[role].maxLife;
+			g_roleData.roles[role].neili = g_roleData.roles[role].maxNeili;
+			g_roleData.roles[role].phyPower = MAX_PHYSICAL_POWER;
 		}
 	}
-
 }
 
-//亮屏, 在亮屏之前重新初始化场景
-void CmdScreenFadeIn() { //13
+//亮屏
+void CmdScreenFadeIn(sint16** cmd) //13
+{
+	if (cmd) (*cmd)++;
+
 	int i;
-	for (i = ox100; i >= 0; i-- {
-		ReDraw();
+	for (i = 0xff; i > 0; i -= 0x0f) {
+		RedrawWithoutUpdate();
 		DrawRectangle(0, 0, g_screenSurface->w, g_screenSurface->h, 0, i);
 		UpdateScreen();
 	}
 }
 
 //黑屏
-void CmdScreenFadeOut() //14
+void CmdScreenFadeOut(sint16** cmd) //14
 {
+	if (cmd) (*cmd)++;
+
 	int i;
-	for (i = 0; i < 0x100; i++) {
-		ReDraw();
+	for (i = 0; i < 0xff; i += 0x0f) {
+		RedrawWithoutUpdate();
 		DrawRectangle(0, 0, g_screenSurface->w, g_screenSurface->h, 0, i);
 		UpdateScreen();
 	}
 }
+
+#if 0
 
 //失败画面
 
@@ -5336,7 +5225,7 @@ void instruct_38(snum, layernum, oldpic, int newpic = 0)()
 
 void int instruct_39(snum = 0)()
 {
-	Rscence[snum].EnCondition = 0;
+	g_roleData.scences[snum].EnCondition = 0;
 }
 
 void int instruct_40(director = 0)()

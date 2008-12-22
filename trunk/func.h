@@ -26,6 +26,9 @@
 * 我的话：不保留一切权力，不承担一切责任。不署名。                             *
 *******************************************************************************/
 
+#ifndef __FUNC_H__
+#define __FUNC_H__
+
 sint32 Random(sint32 a, sint32 b);
 
 void Quit();
@@ -59,6 +62,7 @@ void DrawTitlePic(int index, int x, int y);
 void DrawScencePic(int index, int x, int y);
 void DrawScenceWithoutRole(int sx, int sy);
 void DrawRoleOnScence(int x, int y);
+void DrawScenceWithoutUpdate();
 
 void DrawMapPic(int index, int x, int y);
 
@@ -77,13 +81,18 @@ T_Position DrawShadowText(char* str, int x, int y, uint8 color);
 T_Position DrawBig5Text(char* big5, int x, int y, uint8 color);
 T_Position DrawBig5ShadowText(char* big5, int x, int y, uint8 color);
 
-void DrawMap();
 void* LoadFile(char* filename, void* buffer, size_t size);
 bool GoThrouht(int x, int y, bool* inBoat);
 bool GoThroughScence(int x, int y);
 void DrawScenceOnScreen(int x, int y);
 void ShowScenceName(int scence);
+
+void DrawMap();
+void DrawMapWithoutUpdate();
 void DrawScence();
+void RedrawWithoutUpdate();
+
+void Redraw();
 void ReadFiles();
 void UpdateScreen();
 
@@ -92,5 +101,6 @@ void InitialRole();
 void ShowStatus(int index);
 bool MagicLeveup(int role, int* nextLevelExp);
 void InGame(bool start);
-int InScence(int index, bool start);
+int InScence(int scence, EmInScence inScence);
 
+#endif //__FUNC_H__
