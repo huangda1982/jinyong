@@ -26,6 +26,9 @@
 * 我的话：不保留一切权力，不承担一切责任。不署名。                             *
 *******************************************************************************/
 
+#ifndef __TYPEDEF_H__
+#define __TYPEDEF_H__
+
 #pragma pack (1)
 
 #define FALSE	0
@@ -53,6 +56,12 @@ typedef enum {
 
 	SCENCE_LAYER_NUM
 } EmScenceLayer;
+
+typedef enum {
+	EmInScenceStart,
+	EmInScenceEnter,
+	EmInScenceJump,
+} EmInScence;
 
 typedef enum {
 	EmInGameMap,
@@ -121,7 +130,7 @@ typedef struct
 	sint16 shipX1;
 	sint16 shipY1;
 	sint16 shipFace;
-	sint16 teamList[6];
+	sint16 team[MAX_TEAM_ROLE];
 	T_ItemList itemList[ITEM_NUM];
 } T_SaveCommon;
 
@@ -240,19 +249,19 @@ typedef struct
 	sint16 entranceMusic;
 	sint16 jumpScence;
 	sint16 enCondition;
-	sint16 mainEntranceY1;
-	sint16 mainEntranceX1;
-	sint16 mainEntranceY2;
-	sint16 mainEntranceX2;
+	sint16 mapEntrance1Y;
+	sint16 mapEntrance1X;
+	sint16 mapEntrance2Y;
+	sint16 mapEntrance2X;
 	sint16 entranceY;
 	sint16 entranceX;
 
 	sint16 exitY[3];
 	sint16 exitX[3];
-	sint16 jumpY1;
-	sint16 jumpX1;
-	sint16 jumpY2;
-	sint16 jumpX2;
+	sint16 jumpY;
+	sint16 jumpX;
+	sint16 jumpEntranceY;
+	sint16 jumpEntranceX;
 } T_Scence;
 
 typedef struct
@@ -324,3 +333,5 @@ typedef struct
 	sint16 expGot;
 	sint16 autoMode;
 } T_BattleRole;
+
+#endif //__TYPEDEF_H__

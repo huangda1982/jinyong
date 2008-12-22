@@ -26,6 +26,9 @@
 * 我的话：不保留一切权力，不承担一切责任。不署名。                             *
 *******************************************************************************/
 
+#ifndef __CONST_H__
+#define __CONST_H__
+
 /*******************************************************************************
 * Graphic                                                                      *
 *******************************************************************************/
@@ -48,8 +51,11 @@
 #define BIG_PIC_HEIGHT	200
 #define BIG_PIC_SIZE	(BIG_PIC_WIDTH * BIG_PIC_HEIGHT)
 
-#define SCENCE_PIC_WIDTH	(SCENCE_WIDTH * CELL_WIDTH)
-#define SCENCE_PIC_HEIGHT	(SCENCE_HEIGHT * CELL_HEIGHT)
+#define SCENCE_PIC_WIDTH	((SCENCE_HEIGHT + SCENCE_WIDTH) * CELL_WIDTH / 2)
+#define SCENCE_PIC_HEIGHT	((SCENCE_WIDTH + SCENCE_HEIGHT) * CELL_HEIGHT / 2)
+
+#define MAP_PIC_WIDTH	((MAP_HEIGHT + MAP_WIDTH) * CELL_WIDTH / 2)
+#define MAP_PIC_HEIGHT	((MAP_WIDTH + MAP_HEIGHT) * CELL_HEIGHT / 2)
 
 #define RECTANGLE_D	5
 #define RECTANGLE_N	8
@@ -94,6 +100,15 @@
 #define FRAME_TEXT_PADDING		5
 
 /*******************************************************************************
+* Input                                                                        *
+*******************************************************************************/
+
+#define KEY_REPEAT_DELAY	200
+#define KEY_REPEAT			100
+
+#define KEYUP	-1
+
+/*******************************************************************************
 * In Game                                                                      *
 *******************************************************************************/
 
@@ -115,11 +130,13 @@
 #define MAX_WEAPON_MATCH		7		//"武功与武器配合"的组合数量
 #define MIN_KNOWLEDGE			80		//最低有效武学常识
 
-#define ITEM_NUM			200		//最大物品数量
-#define ROLE_NUM			320
-#define SCENCE_NUM			84
-#define MAGIC_NUM			93
-#define SHOP_NUM			5
+#define ITEM_NUM	200		//最大物品数量
+#define ROLE_NUM	320
+#define SCENCE_NUM	84
+#define MAGIC_NUM	93
+#define SHOP_NUM	5
+
+#define MAX_TEAM_ROLE	6
 
 #define SCENCE_WIDTH			64
 #define SCENCE_HEIGHT			SCENCE_WIDTH
@@ -136,7 +153,7 @@
 #define MAX_HEAD_NUM			189		//有专有头像的最大人物编号, 仅用于对话指令
 
 #define WALK_PIC_OFFSET	2501	//起始的行走贴图
-#define WALK_PIC_NUM	6
+#define WALK_PIC_NUM	7
 
 #define REST_PIC_OFFSET	2528	//起始的休息贴图
 #define REST_PIC_NUM	6
@@ -159,10 +176,9 @@
 #define EVENT_GAME_START	691		//初始事件
 
 #define SCENCE_HOME			70		//初始场景
-#define SCENCE_EXIT			-1		//初始场景
+#define SCENCE_EXIT			-1
 
 #define GAME_START_SX	20		//初始坐标(程序中的x, y与游戏中是相反的, 这是早期的遗留问题)
 #define GAME_START_SY	19		//初始坐标
 
-#define KEY_REPEAT_DELAY	200
-#define KEY_REPEAT			100
+#endif //__CONST_H__
