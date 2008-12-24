@@ -25,13 +25,13 @@ interface
 
 uses
   SysUtils,
-  //Windows,
+  Windows,
   math,
-  //Dialogs,
-  //SDL,
-  //SDL_TTF,
-  //SDL_mixer,
-  //SDL_image,
+  Dialogs,
+  SDL,
+  SDL_TTF,
+  SDL_mixer,
+  SDL_image,
   iniFiles;
 
 type
@@ -6954,7 +6954,7 @@ begin
           str := str + 'x' + inttostr(i) + '=' + inttostr(x50[i]) + char(13) + char(10);
         messagebox(0, @str[1], 'KYS Windows', MB_OK);
       end;
-    49: //In PE files, you can not call any procedure as your wish.
+    49: //In PE files, you can't call any procedure as your wish.
       begin
       end;
   end;
@@ -7863,7 +7863,7 @@ begin
         pos := GetpositionOnScreen(i1, i2, Bx, By);
         if (i1 = Ax) and (i2 = Ay) then
           DrawBPic(Bfield[0, i1, i2] div 2, pos.x, pos.y, 1)
-        else if (BField[3, i1, i2] = 0) and (abs(i1 - Bx) + abs(i2 - By) <= step) then
+        else if BField[3, i1, i2] = 0 then
           DrawBPic(Bfield[0, i1, i2] div 2, pos.x, pos.y, 0)
         else
           DrawBPic(Bfield[0, i1, i2] div 2, pos.x, pos.y, -1);
