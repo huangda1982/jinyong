@@ -85,7 +85,7 @@ byte* g_cmdGrpBuff = NULL;
 
 //主地图数据
 sint16 g_map[MAP_WIDTH][MAP_HEIGHT] = {{0}};
-sint16 g_surface[MAP_WIDTH][MAP_HEIGHT] = {{0}};
+sint16 g_ground[MAP_WIDTH][MAP_HEIGHT] = {{0}};
 sint16 g_building[MAP_WIDTH][MAP_HEIGHT] = {{0}};
 sint16 g_buildingX[MAP_WIDTH][MAP_HEIGHT] = {{0}};
 sint16 g_buildingY[MAP_WIDTH][MAP_HEIGHT] = {{0}};
@@ -100,8 +100,7 @@ int g_mStep = 0;
 int g_mRest = 0;
 int g_mShip = 0;
 
-bool g_rest = 0;
-bool g_ship = 0;
+bool g_ship = FALSE;
 
 int g_ex = 0;
 int g_ey = 0;
@@ -553,7 +552,7 @@ void PutPixel(SDL_Surface* surface, int x, int y, uint32 pixel)
 }
 
 //RLE8图片绘制子程，所有相关子程均对此封装
-void DrawRLE8Pic(SDL_Surface* surface, int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight)
+void DrawPic(SDL_Surface* surface, int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight)
 {
 	T_PicRect* picRect = NULL;
 	byte* nextPicBuffer = NULL;
@@ -629,13 +628,6 @@ void DrawBigPicOnScreen(int index, byte* buffer)
 	}
 }
 
-void DrawPic(SDL_Surface* destSurface, int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight)
-{
-	if (destSurface) {
-		DrawRLE8Pic(destSurface, index, x, y, idxBuffer, picBuffer, highlight);
-	}
-}
-
 //获取场景中坐标在Buffer上的位置
 T_Position GetScenceBufferXYPos(int sx, int sy)
 {
@@ -647,7 +639,7 @@ T_Position GetScenceBufferXYPos(int sx, int sy)
 }
 
 //获取屏幕原点在场景Pic中的坐标
-T_Position GetScreenPosInScenceBuff(int sx, int sy)
+T_Position GetScreenPosInScence(int sx, int sy)
 {
 	T_Position pos = {.x = 0, .y = 0};
 	pos.x = -sx * CELL_WIDTH / 2 + sy * CELL_WIDTH / 2 + SCENCE_PIC_WIDTH / 2 - SCREEN_CENTER_X;
@@ -684,21 +676,6 @@ void DrawTitlePic(int index, int x, int y)
 	}
 }
 
-//显示场景图片
-void DrawScencePic(int index, int x, int y)
-{
-	DrawPicOnScreen(index, x, y, g_scenceIdxBuff, g_scencePicBuff, 0);
-}
-
-//将场景图片信息写入映像
-
-void InitialScenceLayer(int index, int x, int y)
-{
-	//if (x + w > 2303) w = 2303 - x;
-	//if (y + h > 2303) h = 2303 - y;
-	DrawPic(g_scenceSurface, index, x, y, g_scenceIdxBuff, g_scencePicBuff, 0);
-}
-
 //判断图像是否在指定范围内
 bool PicInArea(int x, int y, T_PicRect picRect, T_Rect destRect)
 {
@@ -712,12 +689,6 @@ bool PicInArea(int x, int y, T_PicRect picRect, T_Rect destRect)
 	}
 }
 
-
-//显示主地图贴图
-void DrawMapPic(int index, int x, int y)
-{
-	DrawPicOnScreen(index, x, y, g_mapIdxBuff, g_mapPicBuff, 0);
-}
 
 //显示头像
 void DrawFacePic(int index, int x, int y)
@@ -926,105 +897,21 @@ void DrawFrameRectangle(int x, int y, int w, int h, uint8 frmColor, uint8 insCol
 	//SDL_UnlockSurface(g_screenSurface);
 }
 
-void DrawMapWithoutUpdate()
-{
-	int   i1 = 0;
-	int  i2 = 0;
-	int  i = 0;
-	int  sum = 0;
-	int  x = 0;
-	int y = 0;
-	sint16 temp[MAP_WIDTH][MAP_HEIGHT];
-	T_Position pos;
-
-	//由上到下绘制, 先绘制中心点靠上的建筑
-	for (sum = -29; sum < 41; sum++) {
-		for (i = -15; i < 16; i++) {
-			i1 = g_mx + i + (sum / 2);
-			i2 = g_my - i + (sum - sum / 2);
-			pos = GetMapScenceXYPos(i1, i2, g_mx, g_my);
-			if ((i1 >= 0) && (i1 < 480) && (i2 >= 0) && (i2 < 480))
-			{
-				if ((sum >= -27) && (sum <= 28) && (i >= -9) && (i <= 9))
-				{
-					DrawMapPic(g_map[i1][i2] / 2, pos.x, pos.y);
-					if (g_surface[i1][i2] > 0)
-						DrawMapPic(g_surface[i1][i2] / 2, pos.x, pos.y);
-				}
-				temp[i1][i2] = g_building[i1][i2];
-			} else {
-				DrawMapPic(0, pos.x, pos.y);
-			}
-		}
-	}
-
-#if 0
-	for sum = -29 to 40 do
-		for i = -15 to 15 do
-		{
-			i1 = g_mx + i + (sum / 2);
-			i2 = g_my - i + (sum - sum / 2);
-			if ((i1 >= 0) && (i1 < 480) && (i2 >= 0) && (i2 < 480))
-			{
-				x = g_buildingY[i1, i2];
-				y = g_buildingX[i1, i2];
-				Pos = GetMapScenceXYPos(x, y, g_mx, g_my);
-				if (g_buildingX[i1, i2] > 0) && (((g_buildingX[i1 - 1, i2 - 1] <> g_buildingX[i1, i2]) && (g_buildingX[i1 + 1, i2 + 1] <> g_buildingX[i1, i2]))
-						|| ((g_buildingY[i1 - 1, i2 - 1] <> g_buildingY[i1, i2]) && (g_buildingY[i1 + 1, i2 + 1] <> g_buildingY[i1, i2]))) then
-				{
-
-					if (temp[x, y] > 0)
-					{
-						DrawMapPic(g_building[x, y] / 2, pos.x, pos.y);
-						temp[x, y] = 0;
-					}
-				}
-
-				//如在水面上则绘制船的贴图
-				if ((i1 == g_mx) && (i2 == g_my))
-					if ((g_ship == 0))
-						if (g_rest == 0)
-							DrawMapPic(WALK_PIC_OFFSET + g_mFace * WALK_PIC_NUM + g_mStep, SCREEN_CENTER_X, SCREEN_CENTER_Y)
-						else
-							DrawMapPic(2528 + g_mFace * 6 + g_mStep, SCREEN_CENTER_X, SCREEN_CENTER_Y)
-					else
-						DrawMapPic(3714 + g_mFace * 4 + (g_mStep + 1) / 2, SCREEN_CENTER_X, SCREEN_CENTER_Y);
-				if ((temp[i1, i2] > 0) && (g_buildingX[i1, i2] == i2))
-				{
-					DrawMapPic(g_building[i1, i2] / 2, pos.x, pos.y);
-					temp[i1, i2] = 0;
-				}
-			}
-
-		}
-#endif
-
-	//SDL_UpdateRect(g_screenSurface, 0,0,g_screenSurface.w,g_screenSurface.h);
-}
-
-//显示主地图场景于屏幕
-void DrawMap()
-{
-	DrawMapWithoutUpdate();
-	UpdateScreen();
-}
-
 //判定主地图某个位置能否行走, 是否变成船
 bool GoThrough(int mx, int my)
 {
 	bool goThrough = FALSE;
 
 	if (mx >= 0 && mx < MAP_WIDTH && my >= 0 && my < MAP_HEIGHT) {
-		goThrough &= g_buildingX[mx][my] == 0;
+		goThrough = g_buildingX[mx][my] == 0;
 		goThrough &= g_map[mx][my] != 838;
 		goThrough &= g_map[mx][my] < 621 || g_map[mx][my] > 670;
 	}
 
-	g_ship = g_map[mx][my] < 358 || g_map[mx][my] > 362;
-	g_ship &= g_map[mx][my] < 506 || g_map[mx][my] > 670;
-	g_ship &= g_map[mx][my] < 1016 || g_map[mx][my] > 1022;
+	g_ship = g_map[mx][my] >= 358 && g_map[mx][my] <= 362;
+	g_ship |= g_map[mx][my] >= 506 && g_map[mx][my] <= 670;
+	g_ship |= g_map[mx][my] >= 1016 && g_map[mx][my] <= 1022;
 
-	printf("GoThrough: %d\n", goThrough);
 	return goThrough;
 }
 
@@ -1055,76 +942,74 @@ void DrawBFieldOnScreen(int x, int y)
 {
 	int maxW = g_scenceSurface->w - x;
 	int maxH = g_scenceSurface->h - y;
-	SDL_Rect rect = {
+	SDL_Rect srcRect = {
 		x = x, .y = y,
 		.w = SCREEN_WIDTH < maxW ? SCREEN_WIDTH : maxW,
 		.h = SCREEN_HEIGHT < maxH ? SCREEN_HEIGHT : maxH
 	};
 
-	SDL_BlitSurface(g_bfSurface, &rect, g_screenSurface, &(SDL_Rect){0, 0, SCREEN_WIDTH, SCREEN_HEIGHT});
-}
-
-//画不含主角的场景(与DrawScenceByCenter相同)
-void DrawScenceWithoutRole(int sx, int sy)
-{
-	T_Position pos = GetScreenPosInScenceBuff(sx, sy);
-	int maxW = g_scenceSurface->w - pos.x;
-	int maxH = g_scenceSurface->h - pos.y;
-	SDL_Rect rect = {
-		.x = pos.x, .y = pos.y,
-		.w = SCREEN_WIDTH < maxW ? SCREEN_WIDTH : maxW,
-		.h = SCREEN_HEIGHT < maxH ? SCREEN_HEIGHT : maxH
+	SDL_Rect dstRect = {
+		x = 0, .y = 0,
+		.w = SCREEN_WIDTH,
+		.h = SCREEN_HEIGHT
 	};
 
-	SDL_BlitSurface(g_scenceSurface, &rect, g_screenSurface, &(SDL_Rect){0, 0, SCREEN_WIDTH, SCREEN_HEIGHT});
+	SDL_BlitSurface(g_bfSurface, &srcRect, g_screenSurface, &dstRect);
 }
 
-//画主角于场景
-void DrawRoleOnScence(int x, int y)
+//显示场景图片
+void DrawScencePic(int index, int x, int y)
 {
-	int  sx = 0;
-	int  sy = 0;
-	
-	T_Position pos = GetMapScenceXYPos(g_sx, g_sy, x, y);
-	DrawScencePic(WALK_PIC_OFFSET + g_sFace * (WALK_PIC_NUM) + g_sStep, pos.x, pos.y - g_curScenceData[EmScenceLayerEvent][g_sx][g_sy]);
-	//重画主角附近的部分, 考虑遮挡
-	for (sy = g_sy + 1; sy < SCENCE_HEIGHT; sy++) {
-		for (sx = g_sx + 1; sx < SCENCE_WIDTH; sx++) {
-			T_Position pos1 = GetMapScenceXYPos(sx, sy, x, y);
-			if (pos.x < SCREEN_WIDTH || pos.y < SCREEN_HEIGHT) {
-				DrawScencePic(g_curScenceData[EmScenceLayerGround][sx][sy] / 2, pos1.x, pos1.y);
-
-				if (g_curScenceData[EmScenceLayerBuilding][sx][sy] > 0 && (sy > g_sy || sx > g_sx)) {
-					DrawScencePic(g_curScenceData[EmScenceLayerBuilding][sx][sy] / 2, pos1.x, pos1.y - g_curScenceData[EmScenceLayerBuildingOffset][sx][sy]);
-				}
-
-				if (g_curScenceData[EmScenceLayerSky][sx][sy] > 0 && (sy > g_sy || sx > g_sx)) {
-					DrawScencePic(g_curScenceData[EmScenceLayerSky][sx][sy] / 2, pos1.x, pos1.y - g_curScenceData[EmScenceLayerSkyOffset][sx][sy]);
-				}
-
-				if (g_curScenceData[EmScenceLayerEvent][sx][sy] >= 0 && (sy > g_sy || sx > g_sx) && CurScenceXYEventData(sx, xy).pic1 > 0) {
-					DrawScencePic(CurScenceXYEventData(sx, xy).pic1 / 2, pos1.x, pos1.y - g_curScenceData[EmScenceLayerSky][sx][sy]);
-				}
-			}
-		}
-	}
+	DrawPicOnScreen(index, x, y, g_scenceIdxBuff, g_scencePicBuff, 0);
 }
 
+//生成场景映像
 void DrawScenceWithoutUpdate()
 {
-	//先画无主角的场景, 再画主角
+	int sx;
+	int sy;
+	int cx;
+	int cy;
+
 	//如在事件中, 则以g_ex, g_ey为中心, 否则以主角坐标为中心
-	if (g_curEvent == EVENT_NOTHING) {
-		DrawScenceWithoutRole(g_sx, g_sy);
-		DrawRoleOnScence(g_sx, g_sy);
+	if (g_curEvent != EVENT_NOTHING) {
+		cx = g_ex;
+		cy = g_ey;
 	} else {
-		DrawScenceWithoutRole(g_ex, g_ey);
-		if (g_curEventData.x == g_sx && g_curEventData.y == g_sy) {
-			if (g_curEventData.pic1 <= 0) {
-				DrawRoleOnScence(g_ex, g_ey);
+		cx = g_sx;
+		cy = g_sy;
+	}
+
+	for (sy = 0; sy < SCENCE_WIDTH; sy++) {
+		for (sx = 0; sx < SCENCE_WIDTH; sx++) {
+			T_Position pos = GetMapScenceXYPos(sx, sy, cx, cy);
+			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH)
+				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT)) {
+				DrawScencePic(g_curScenceData[EmScenceLayerGround][sx][sy] / 2, pos.x, pos.y);
+
+				if (g_curScenceData[EmScenceLayerBuilding][sx][sy] > 0) {
+					DrawScencePic(g_curScenceData[EmScenceLayerBuilding][sx][sy] / 2,
+						pos.x, pos.y - g_curScenceData[EmScenceLayerBuildingOffset][sx][sy]);
+				}
+
+					//画主角
+				if (sx == g_sx && sy == g_sy									//主角位置
+					&& (g_curEvent == EVENT_NOTHING								//没有Event
+						|| g_curEventData.x != g_sx || g_curEventData.y != g_sy	//不在Event位置
+						|| g_curEventData.pic1 <= 0)) {							//Event没有图片
+					DrawScencePic(WALK_PIC_OFFSET + g_sFace * (WALK_PIC_NUM) + g_sStep, pos.x, pos.y - g_curScenceData[EmScenceLayerEvent][g_sx][g_sy]);
+				}
+
+				if (g_curScenceData[EmScenceLayerSky][sx][sy] > 0) {
+					DrawScencePic(g_curScenceData[EmScenceLayerSky][sx][sy] / 2,
+						pos.x, pos.y - g_curScenceData[EmScenceLayerSkyOffset][sx][sy]);
+				}
+
+				if (g_curScenceData[EmScenceLayerEvent][sx][sy] >= 0 && CurScenceXYEventData(sx, xy).pic1 > 0) {
+					DrawScencePic(CurScenceXYEventData(sx, xy).pic1 / 2,
+						pos.x, pos.y - g_curScenceData[EmScenceLayerBuildingOffset][sx][sy]);
+				}
 			}
-		} else {
-			DrawRoleOnScence(g_ex, g_ey);
 		}
 	}
 }
@@ -1135,8 +1020,163 @@ void DrawScence()
 	DrawScenceWithoutUpdate();
 	UpdateScreen();
 }
-#if 0
 
+//显示主地图贴图
+void DrawMapPic(int index, int x, int y)
+{
+	DrawPicOnScreen(index, x, y, g_mapIdxBuff, g_mapPicBuff, 0);
+}
+
+void DrawMapWithoutUpdate()
+{
+	int mx;
+	int my;
+	int cx = g_mx;
+	int cy = g_my;
+
+	for (my = 0; my < MAP_HEIGHT; my++) {
+		for (mx = 0; mx < MAP_WIDTH; mx++) {
+			T_Position pos = GetMapScenceXYPos(mx, my, cx, cy);
+			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH)
+				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT)) {
+				DrawMapPic(g_map[mx][my] / 2, pos.x, pos.y);
+
+				if (g_ground[mx][my] > 0) {
+					DrawMapPic(g_ground[mx][my] / 2, pos.x, pos.y);
+				}
+			}
+		}
+	}
+
+	for (my = 0; my < MAP_HEIGHT; my++) {
+		for (mx = 0; mx < MAP_WIDTH; mx++) {
+			T_Position pos = GetMapScenceXYPos(mx, my, cx, cy);
+			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH)
+				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT)) {
+				if (g_building[mx][my] > 0) {
+					DrawMapPic(g_building[mx][my] / 2, pos.x, pos.y);
+				}
+
+				if (mx == g_mx && my == g_my) {
+					if (g_ship) {
+						DrawMapPic(SHIP_PIC_OFFSET + g_mFace * SHIP_PIC_NUM + g_mShip, pos.x, pos.y);
+						printf("g_mShip = %d\n", g_mShip);
+						printf("ship pic = %d\n", SHIP_PIC_OFFSET + g_mFace * SHIP_PIC_NUM + g_mShip);
+					} else if (g_mStep || !g_mRest) {
+						DrawMapPic(WALK_PIC_OFFSET + g_mFace * WALK_PIC_NUM + g_mStep, pos.x, pos.y);
+						printf("g_mStep = %d\n", g_mStep);
+						printf("walk pic = %d\n", WALK_PIC_OFFSET + g_mFace * WALK_PIC_NUM + g_mStep);
+					} else {
+						DrawMapPic(REST_PIC_OFFSET + g_mFace * REST_PIC_NUM + (g_mRest - 1), pos.x, pos.y);
+						printf("g_mRest = %d\n", g_mRest);
+						printf("rest pic = %d\n", REST_PIC_OFFSET + g_mFace * REST_PIC_NUM + (g_mRest - 1));
+					}
+				}
+			}
+		}
+	}
+#if 0
+	int   i1 = 0;
+	int  i2 = 0;
+	int  i = 0;
+	int  sum = 0;
+	int  x = 0;
+	int y = 0;
+	sint16 temp[MAP_WIDTH][MAP_HEIGHT];
+	T_Position pos;
+
+	//由上到下绘制, 先绘制中心点靠上的建筑
+	for (sum = -29; sum < 41; sum++) {
+		for (i = -15; i < 16; i++) {
+			i1 = g_mx + i + (sum / 2);
+			i2 = g_my - i + (sum - sum / 2);
+			pos = GetMapScenceXYPos(i1, i2, g_mx, g_my);
+			if ((i1 >= 0) && (i1 < 480) && (i2 >= 0) && (i2 < 480))
+			{
+				if ((sum >= -27) && (sum <= 28) && (i >= -9) && (i <= 9))
+				{
+					DrawMapPic(g_map[i1][i2] / 2, pos.x, pos.y);
+					if (g_ground[i1][i2] > 0)
+						DrawMapPic(g_ground[i1][i2] / 2, pos.x, pos.y);
+				}
+				temp[i1][i2] = g_building[i1][i2];
+			} else {
+				DrawMapPic(0, pos.x, pos.y);
+			}
+		}
+	}
+
+#if 0
+	for sum = -29 to 40 do
+		for i = -15 to 15 do
+		{
+			i1 = g_mx + i + (sum / 2);
+			i2 = g_my - i + (sum - sum / 2);
+			if ((i1 >= 0) && (i1 < 480) && (i2 >= 0) && (i2 < 480))
+			{
+				x = g_buildingY[i1, i2];
+				y = g_buildingX[i1, i2];
+				Pos = GetMapScenceXYPos(x, y, g_mx, g_my);
+				if ((g_buildingX[i1, i2] > 0 && g_buildingX[i1 - 1, i2 - 1] <> g_buildingX[i1, i2] && g_buildingX[i1 + 1, i2 + 1] <> g_buildingX[i1, i2]) || (g_buildingY[i1 - 1, i2 - 1] <> g_buildingY[i1, i2] && g_buildingY[i1 + 1, i2 + 1] <> g_buildingY[i1, i2])) then
+				{
+
+					if (temp[x, y] > 0)
+					{
+						DrawMapPic(g_building[x, y] / 2, pos.x, pos.y);
+						temp[x, y] = 0;
+					}
+				}
+
+				//如在水面上则绘制船的贴图
+				if ((i1 == g_mx) && (i2 == g_my))
+					if ((g_ship == 0))
+						if (g_mStep)
+							DrawMapPic(WALK_PIC_OFFSET + g_mFace * WALK_PIC_NUM + g_mStep, SCREEN_CENTER_X, SCREEN_CENTER_Y)
+						else
+							DrawMapPic(2528 + g_mFace * 6 + g_mStep, SCREEN_CENTER_X, SCREEN_CENTER_Y)
+					else
+						DrawMapPic(3714 + g_mFace * 4 + (g_mStep + 1) / 2, SCREEN_CENTER_X, SCREEN_CENTER_Y);
+				if ((temp[i1, i2] > 0) && (g_buildingX[i1, i2] == i2))
+				{
+					DrawMapPic(g_building[i1, i2] / 2, pos.x, pos.y);
+					temp[i1, i2] = 0;
+				}
+			}
+
+		}
+#endif
+
+	//SDL_UpdateRect(g_screenSurface, 0,0,g_screenSurface.w,g_screenSurface.h);
+#endif
+}
+
+//显示主地图场景于屏幕
+void DrawMap()
+{
+	DrawMapWithoutUpdate();
+	UpdateScreen();
+}
+
+//重画屏幕
+void RedrawWithoutUpdate()
+{
+	switch (g_inGame) {
+		case EmInGameMap:
+			DrawMapWithoutUpdate();
+			break;
+		case EmInGameScence:
+			DrawScenceWithoutUpdate();
+			break;
+		case EmInGameBattleField:
+			//*DrawWholeBField();
+			break;
+		case EmInGameTitle:
+		default:
+			break;
+	}
+}
+
+#if 0
 //画不含主角的战场
 void DrawBFieldWithoutRole(x, int y = 0)()
 	var
@@ -1169,57 +1209,6 @@ void DrawBFieldWithoutRole(x, int y = 0)()
 void DrawRectangle(int x, int y, int w, int h, uint8 color, uint8 alpha)
 {
 	boxColor(g_screenSurface, x, y, x + w, y + h, COLORA(color, alpha));
-}
-
-//重画屏幕, sdl_updaterect(g_screenSurface,0,0,g_screenSurface.w,g_screenSurface.h)可显示
-void RedrawWithoutUpdate()
-{
-	switch (g_inGame) {
-		case EmInGameMap:
-			//DrawMapWithoutUpdate();
-			break;
-		case EmInGameScence:
-			DrawScenceWithoutUpdate();
-			break;
-		case EmInGameBattleField:
-			//*DrawWholeBField();
-			break;
-		case EmInGameTitle:
-		default:
-			break;
-	}
-}
-
-//生成场景映像
-void InitialScence()
-{
-	int sx;
-	int sy;
-	for (sy = 0; sy < SCENCE_WIDTH; sy++) {
-		for (sx = 0; sx < SCENCE_WIDTH; sx++) {
-			//x = -sx * 18 + sy * 18 + 1151;
-			//y = sx * 9 + sy * 9 + 9;
-
-			T_Position pos = GetScenceBufferXYPos(sx, sy);
-
-			InitialScenceLayer(g_curScenceData[EmScenceLayerGround][sx][sy] / 2, pos.x, pos.y);
-
-			if (g_curScenceData[EmScenceLayerBuilding][sx][sy] > 0) {
-				InitialScenceLayer(g_curScenceData[EmScenceLayerBuilding][sx][sy] / 2,
-					pos.x, pos.y - g_curScenceData[EmScenceLayerBuildingOffset][sx][sy]);
-			}
-
-			if (g_curScenceData[EmScenceLayerSky][sx][sy] > 0) {
-				InitialScenceLayer(g_curScenceData[EmScenceLayerSky][sx][sy] / 2,
-					pos.x, pos.y - g_curScenceData[EmScenceLayerSkyOffset][sx][sy]);
-			}
-
-			if (g_curScenceData[EmScenceLayerEvent][sx][sy] >= 0 && CurScenceXYEventData(sx, xy).pic1 > 0) {
-				InitialScenceLayer(CurScenceXYEventData(sx, xy).pic1 / 2,
-					pos.x, pos.y - g_curScenceData[EmScenceLayerBuildingOffset][sx][sy]);
-			}
-		}
-	}
 }
 
 #if 0
@@ -1412,7 +1401,7 @@ void ReadFiles()
 
 	LoadFile("earth.002", g_map, sizeof(g_map));
 
-	LoadFile("surface.002", g_surface, sizeof(g_surface));
+	LoadFile("surface.002", g_ground, sizeof(g_ground));
 
 	LoadFile("building.002", g_building, sizeof(g_building));
 
@@ -1442,7 +1431,6 @@ void Start()
 	ReadFiles();
 
 	memset(g_entrances, 0, sizeof(g_entrances));
-	g_mStep = 0;
 	g_fullScreen = FALSE;
 	EmMainMenu menu = EmMainMenuNew;
 
@@ -1564,141 +1552,6 @@ void InitialRole()
 	hero->phyPower = MAX_PHYSICAL_POWER;
 }
 
-//于主地图行走
-void InMap()
-{
-	uint32 next_time = SDL_GetTicks() + 3000;
-	g_inGame = EmInGameMap;
-
-	CmdScreenFadeIn(NULL);
-
-	g_rest = FALSE;
-	int lastMx = g_mx;
-	int lastMy = g_my;
-
-	//PlayMp3(16, -1);
-
-	//事件轮询(并非等待)
-	while (TRUE) {
-		//如果当前处于标题画面, 则退出, 用于战斗失败
-		//***********
-
-	int mx = g_mx;
-	int my = g_my;
-	switch (g_sFace) {
-		case 0:
-			mx--;
-			break;
-		case 1:
-			my++;
-			break;
-		case 2:
-			my--;
-			break;
-		case 3:
-			mx++;
-			break;
-		default:
-			break;
-	}
-
-	if (GoIn(mx, my)) {
-		CmdScreenFadeOut(NULL);
-		InScence(g_entrances[mx][my], EmInScenceEnter);
-		g_inGame = EmInGameMap;
-		CmdScreenFadeIn(NULL);
-	}
-
-	//主地图动态效果, 实际仅有主角的动作
-	uint32 now = SDL_GetTicks();
-	if (now - next_time > 0) {
-		if ((lastMx == g_mx) && (lastMy == g_my))
-		{
-			g_rest = TRUE;
-			if (g_mRest > REST_PIC_NUM) {
-				g_mRest = 0;
-				g_rest = FALSE;
-			}
-		}
-
-		lastMx = g_mx;
-		lastMy = g_my;
-
-		if (g_rest) {
-			next_time = now + 500;
-		} else {
-			next_time = now + 3000;
-		}
-	}
-
-	DrawMap();
-
-	int key = PollKey();
-	switch (key) {
-		case SDLK_ESCAPE:
-			//***MenuEsc;
-			break;
-		case SDLK_UP:
-			g_rest = FALSE;
-			g_mFace = 0;
-			if (++g_mStep >= WALK_PIC_NUM) g_mStep = 1;
-			if (GoThrough(g_mx - 1, g_my)) {
-				g_mx--;
-			}
-			break;
-		case SDLK_RIGHT:
-			g_rest = FALSE;
-			g_mFace = 1;
-			if (++g_mStep >= WALK_PIC_NUM) g_mStep = 1;
-			if (GoThrough(g_mx, g_my + 1)) {
-				g_my++;
-			}
-			break;
-		case SDLK_LEFT:
-			g_rest = FALSE;
-			g_mFace = 2;
-			if (++g_mStep >= WALK_PIC_NUM) g_mStep = 1;
-			if (GoThrough(g_mx, g_my - 1)) {
-				g_my--;
-			}
-			break;
-		case SDLK_DOWN:
-			g_rest = FALSE;
-			g_mFace = 3;
-			if (++g_mStep >= WALK_PIC_NUM) g_mStep = 1;
-			if (GoThrough(g_mx + 1, g_my)) {
-				g_mx++;
-			}
-			break;
-		default:
-			break;
-	}
-	}
-}
-
-//检测是否处于某入口, 并是否达成进入条件
-bool GoIn(int mx, int my)
-{
-	bool goIn = FALSE;
-
-	int scence = -1;
-	if ((scence = g_entrances[mx][my] >= 0)) {
-		if ((g_roleData.scences[scence].enCondition == 0)) {
-			goIn = TRUE;
-		} else if ((g_roleData.scences[scence].enCondition == 2)) { //是否有人轻功超过70
-			int i;
-			for (i = 0; i < MAX_TEAM_ROLE; i++) {
-				if (g_roleData.common.team[i] >= 0 && g_roleData.roles[g_roleData.common.team[i]].speed > 70) {
-					goIn = TRUE;
-					break;
-				}
-			}
-		}
-	}
-
-	return goIn;
-}
-
 #if 0
 
 	void UpdateScenceAmi()
@@ -1736,16 +1589,151 @@ bool GoIn(int mx, int my)
 
 #endif
 
-void InGame(bool start)
+//于主地图行走
+void InMap()
 {
-	if (start) {
-		InScence(SCENCE_HOME, EmInScenceStart);
+	uint32 next_time = SDL_GetTicks() + 3000;
+	g_inGame = EmInGameMap;
 
-		g_mx = g_roleData.scences[SCENCE_HOME].mapEntrance1X;
-		g_my = g_roleData.scences[SCENCE_HOME].mapEntrance1Y;
+	g_mStep = 0;
+	g_mRest = 0;
+	g_mShip = 0;
+
+	CmdScreenFadeIn(NULL);
+
+	//PlayMp3(16, -1);
+
+	//事件轮询(并非等待)
+	while (TRUE) {
+		//如果当前处于标题画面, 则退出, 用于战斗失败
+		//***********
+
+		int mx = g_mx;
+		int my = g_my;
+		switch (g_mFace) {
+			case 0:
+				mx--;
+				break;
+			case 1:
+				my++;
+				break;
+			case 2:
+				my--;
+				break;
+			case 3:
+				mx++;
+				break;
+			default:
+				break;
+		}
+
+		if (GoIn(mx, my)) {
+			CmdScreenFadeOut(NULL);
+			InScence(g_entrances[mx][my], EmInScenceEnter);
+			g_inGame = EmInGameMap;
+
+			g_mStep = 0;
+			g_mRest = 0;
+			g_mShip = 0;
+
+			CmdScreenFadeIn(NULL);
+		}
+
+		//主地图动态效果, 实际仅有主角的动作
+		uint32 now = SDL_GetTicks();
+		if (now > next_time) {
+			if (g_mStep || ++g_mRest >= REST_PIC_NUM + 1) {
+				g_mRest = 0;
+				next_time = now + 3000;
+			} else {
+				next_time = now + 500;
+			}
+		}
+
+		DrawMap();
+
+		int key = PollKey();
+		switch (key) {
+			case KEYUP:
+				g_mStep = 0;
+				g_mShip = 0;
+				break;
+			case SDLK_UP:
+				g_mFace = 0;
+				if (++g_mStep >= WALK_PIC_NUM) g_mStep = 1;
+				if (++g_mShip >= SHIP_PIC_NUM) g_mShip = 1;
+
+				if (GoThrough(g_mx - 1, g_my)) {
+					g_mx--;
+				}
+				break;
+			case SDLK_RIGHT:
+				g_mFace = 1;
+				if (++g_mStep >= WALK_PIC_NUM) g_mStep = 1;
+				if (++g_mShip >= SHIP_PIC_NUM) g_mShip = 1;
+
+				if (GoThrough(g_mx, g_my + 1)) {
+					g_my++;
+				}
+				break;
+			case SDLK_LEFT:
+				g_mFace = 2;
+				if (++g_mStep >= WALK_PIC_NUM) g_mStep = 1;
+				if (++g_mShip >= SHIP_PIC_NUM) g_mShip = 1;
+
+				if (GoThrough(g_mx, g_my - 1)) {
+					g_my--;
+				}
+				break;
+			case SDLK_DOWN:
+				g_mFace = 3;
+				if (++g_mStep >= WALK_PIC_NUM) g_mStep = 1;
+				if (++g_mShip >= SHIP_PIC_NUM) g_mShip = 1;
+
+				if (GoThrough(g_mx + 1, g_my)) {
+					g_mx++;
+				}
+				break;
+			case SDLK_ESCAPE:
+				//***MenuEsc;
+				break;
+			default:
+				break;
+		}
+	}
+}
+
+//检测是否处于某入口, 并是否达成进入条件
+bool GoIn(int mx, int my)
+{
+	bool goIn = FALSE;
+
+	int scence = -1;
+	if ((scence = g_entrances[mx][my] >= 0)) {
+		if ((g_roleData.scences[scence].enCondition == 0)) {
+			goIn = TRUE;
+		} else if ((g_roleData.scences[scence].enCondition == 2)) { //是否有人轻功超过70
+			int i;
+			for (i = 0; i < MAX_TEAM_ROLE; i++) {
+				if (g_roleData.common.team[i] >= 0 && g_roleData.roles[g_roleData.common.team[i]].speed > 70) {
+					goIn = TRUE;
+					break;
+				}
+			}
+		}
 	}
 
-	InMap();
+	return goIn;
+}
+
+void ShowScenceName(int scence)
+{
+	//UpdateScence();
+	//显示场景名
+	DrawFrameText(Big5ToUtf8(g_roleData.scences[scence].name), TEXT_NORMAL_COLOR, TEXT_COLOR);
+	UpdateScreen();
+
+	WaitKey();
 }
 
 //Walk in a scence, the returned value is the scence number when you exit. If it is -1.
@@ -1769,6 +1757,7 @@ int InScence(int scence, EmInScence inScence)
 		g_inGame = EmInGameScence;
 		g_curScence = scence;
 		g_sFace = g_mFace;
+		g_sStep = 0;
 
 		char smpFilename[PATH_MAX];
 		char sdxFilename[PATH_MAX];
@@ -1800,7 +1789,6 @@ int InScence(int scence, EmInScence inScence)
 					break;
 			}
 
-			InitialScence(g_curScence);
 			CmdScreenFadeIn(NULL);
 
 			if (inScence == EmInScenceStart) {
@@ -1834,8 +1822,9 @@ int InScence(int scence, EmInScence inScence)
 					InScence(g_roleData.scences[g_curScence].jumpScence, jumpInScence);
 
 					g_curScence = scence;
+					g_sStep = 0;
 
-					InitialScence(g_curScence);
+					//InitialScence(g_curScence);
 					CmdScreenFadeIn(NULL);
 
 					ShowScenceName(g_curScence);
@@ -1958,19 +1947,23 @@ int InScence(int scence, EmInScence inScence)
 
 	g_scenceSurface = lastSurface;
 
-	g_mFace = g_sFace = 3 - g_sFace;
+	g_mFace = g_sFace;// = 3 - g_sFace;
 
 	return ret;
 }
 
-void ShowScenceName(int scence)
+void InGame(bool start)
 {
-	//UpdateScence();
-	//显示场景名
-	DrawFrameText(Big5ToUtf8(g_roleData.scences[scence].name), TEXT_NORMAL_COLOR, TEXT_COLOR);
-	UpdateScreen();
+	if (start) {
+	//	InScence(SCENCE_HOME, EmInScenceStart);
+		printf("X = %d, Y = %d\n", g_roleData.scences[SCENCE_HOME].mapEntrance1X, g_roleData.scences[SCENCE_HOME].mapEntrance1Y);
 
-	WaitKey();
+		g_mx = g_roleData.scences[SCENCE_HOME].mapEntrance1X;
+		g_my = g_roleData.scences[SCENCE_HOME].mapEntrance1Y + 1;
+		g_mFace = 1;
+	}
+
+	InMap();
 }
 
 #if 0

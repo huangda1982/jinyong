@@ -155,10 +155,10 @@
 #define WALK_PIC_OFFSET	2501	//起始的行走贴图
 #define WALK_PIC_NUM	7
 
-#define REST_PIC_OFFSET	2528	//起始的休息贴图
+#define REST_PIC_OFFSET	2529	//起始的休息贴图
 #define REST_PIC_NUM	6
 
-#define SHIP_PIC_OFFSET	3714	//起始的行船贴图
+#define SHIP_PIC_OFFSET	3715	//起始的行船贴图
 #define SHIP_PIC_NUM	4
 
 #define MAX_PRO_LIST_OFFSET	43
