@@ -1,21 +1,22 @@
-LIN_CC=gcc
-WCE_CC=arm-wince-pe-gcc
-CFLAG=-g -Wall
+CC=gcc
+CFLAGS=-g -Wall
 
-LIN_TARGET=jinyong
-WCE_TARGET=jinyongCE.exe
-TARGET=$(LIN_TARGET) $(WCE_TARGET)
+TARGET=jinyong
 
-LIB_SDL=-lSDL -lSDL_gfx -lSDL_ttf -lSDL_mixer
+SDL_LIBS=-lSDL -lSDL_gfx -lSDL_ttf -lSDL_mixer
+OBJS=game.o \
+	 map.o \
+	 scence.o \
+	 cmd.o
 
-all: clean linux
+all: clean $(TARGET)
 	-cp -rf $(TARGET) ..
 
-linux:
-	$(LIN_CC) -o $(LIN_TARGET) jinyong.c $(CFLAG) $(LIB_SDL)
+.c.o:
+	$(CC) $(CFLAGS) -c $<
 
-wince:
-	$(WCE_CC) -o $(WCE_TARGET) jinyong.c $(CFLAG) $(LIB_SDL)
+$(TARGET): $(OBJS)
+	$(CC) -o $(TARGET) $(CFLAGS) $(OBJS) $(SDL_LIBS)
 
 clean:
-	-rm -f $(TARGET)
+	-rm -f $(TARGET) $(OBJS)
