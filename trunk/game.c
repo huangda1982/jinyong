@@ -681,7 +681,6 @@ static void InGame(bool start)
 {
 	if (start) {
 	//	InScence(SCENCE_HOME, EmInScenceStart);
-		printf("X = %d, Y = %d\n", g_roleData.scences[SCENCE_HOME].mapEntrance1X, g_roleData.scences[SCENCE_HOME].mapEntrance1Y);
 
 		g_mx = g_roleData.scences[SCENCE_HOME].mapEntrance1X;
 		g_my = g_roleData.scences[SCENCE_HOME].mapEntrance1Y + 1;

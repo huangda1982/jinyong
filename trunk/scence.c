@@ -44,10 +44,8 @@ T_Event g_scenceEventData[SCENCE_NUM][SCENCE_EVENT_NUM];
 *******************************************************************************/
 
 //显示场景图片
-static void DrawScencePic(int index, int x, int y)
-{
+#define DrawScencePic(index, x, y) \
 	DrawPicOnScreen(index, x, y, g_scenceIdxBuff, g_scencePicBuff, 0);
-}
 
 //生成场景映像
 void DrawScenceWithoutUpdate()
@@ -69,8 +67,8 @@ void DrawScenceWithoutUpdate()
 	for (sy = 0; sy < SCENCE_WIDTH; sy++) {
 		for (sx = 0; sx < SCENCE_WIDTH; sx++) {
 			T_Position pos = GetMapScenceXYPos(sx, sy, cx, cy);
-			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH)
-				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT)) {
+			/*if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH)
+				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT))*/ {
 				DrawScencePic(g_curScenceData[EmScenceLayerGround][sx][sy] / 2, pos.x, pos.y);
 
 				if (g_curScenceData[EmScenceLayerBuilding][sx][sy] > 0) {
