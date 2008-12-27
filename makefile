@@ -7,7 +7,9 @@ SDL_LIBS=-lSDL -lSDL_gfx -lSDL_ttf -lSDL_mixer
 OBJS=game.o \
 	 map.o \
 	 scence.o \
-	 cmd.o
+	 cmd.o \
+	 draw.o \
+	 sound.o
 
 all: clean $(TARGET)
 	-cp -rf $(TARGET) ..

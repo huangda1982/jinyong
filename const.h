@@ -11,10 +11,7 @@
 * Graphic                                                                      *
 *******************************************************************************/
 
-//#define HAN_FONT	"font/kaiu.ttf"
-//#define HAN_FONT	"font/ukai.ttf"
 #define HAN_FONT	"font/bkai00mp.ttf"
-#define ENG_FONT	"font/consola.ttf"
 
 #define SCREEN_WIDTH	640
 #define SCREEN_HEIGHT	480
@@ -82,7 +79,7 @@
 *******************************************************************************/
 
 #define KEY_REPEAT_DELAY	200
-#define KEY_REPEAT			100
+#define KEY_REPEAT			50
 
 #define KEYUP	-1
 

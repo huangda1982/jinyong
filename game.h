@@ -1,20 +1,34 @@
 /*******************************************************************************
-* func.h                                                    fileencoding=UTF-8 *
+* game.h                                                    fileencoding=UTF-8 *
 *******************************************************************************/
 
 #include "claim.h"
 
-#ifndef __FUNC_H__
-#define __FUNC_H__
+#ifndef __GAME_H__
+#define __GAME_H__
+
+/*******************************************************************************
+* Headers                                                                      *
+*******************************************************************************/
+
+#include <stdio.h>
+
+#include <stdio.h>
+#include <limits.h>
+#include <time.h>
+
+#include <SDL/SDL.h>
+#include <SDL/SDL_events.h>
+#include <SDL/SDL_mixer.h>
+
+#include "const.h"
+#include "typedef.h"
 
 /*******************************************************************************
 * Global Variables                                                             *
 *******************************************************************************/
 
-//默认调色板数据
-extern T_RGB g_palette[256];
-
-extern SDL_Surface* g_screenSurface;
+extern bool g_fullScreen;
 
 extern T_RoleData g_roleData;
 
@@ -24,13 +38,14 @@ extern EmInGame g_inGame;
 * Functions                                                                    *
 *******************************************************************************/
 
-void DrawScenceOnScreen(int x, int y);
-void UpdateScreen();
+void* LoadFile(char* filename, void* buffer, size_t size);
 
 T_Position GetMapScenceXYPos(int mx, int my, int cx, int cy);
 
-void DrawPic(SDL_Surface* destSurface, int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight);
-#define DrawPicOnScreen(index, x, y, idxBuffer, picBuffer, highlight) \
-	DrawPic(g_screenSurface, (index), (x), (y), (idxBuffer), (picBuffer), (highlight))
+void RedrawWithoutUpdate();
 
-#endif //__FUNC_H__
+int WaitKey();
+int PollKey();
+int InScence(int scence, EmInScence inScence);
+
+#endif //__GAME_H__
