@@ -1,5 +1,5 @@
 /*******************************************************************************
-* jinyong.c                                                 fileencoding=UTF-8 *
+* game.c                                                    fileencoding=UTF-8 *
 *******************************************************************************/
 
 #include "claim.h"
@@ -8,24 +8,13 @@
 * Headers                                                                      *
 *******************************************************************************/
 
-#include <limits.h>
-#include <iconv.h>
-#include <time.h>
-
-#include <SDL/SDL.h>
-#include <SDL/SDL_ttf.h>
-#include <SDL/SDL_events.h>
-#include <SDL/SDL_video.h>
-#include <SDL/SDL_rotozoom.h>
-#include <SDL/SDL_mixer.h>
-#include <SDL/SDL_gfxPrimitives.h>
-
-#include "const.h"
-#include "typedef.h"
-#include "game.h"
+#include "draw.h"
+#include "sound.h"
 #include "map.h"
-#include "graphic.h"
+#include "scence.h"
 #include "cmd.h"
+
+#include "game.h"
 
 /*******************************************************************************
 * Global Variables                                                             *
@@ -34,17 +23,6 @@
 //最大攻击值~最大左右互博值 43~58
 const uint8 MAX_PRO_LIST[58 - 43 + 1] = {
 	100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 1};
-
-iconv_t g_utf8ToBig5 = 0;
-iconv_t g_big5ToUtf8 = 0;
-
-uint16 g_HanFontSize = 20;
-uint16 g_EngFontSize = 18;
-
-
-//贴图的内容及索引
-uint32* g_scenceIdxBuff = NULL;
-byte* g_scencePicBuff = NULL;
 
 uint32* g_bfIdxBuff = NULL;
 byte* g_bfPicBuff = NULL;
@@ -55,59 +33,24 @@ byte* g_effectBuff = NULL;
 uint32* g_actIdxBuff = NULL;
 byte* g_actionBuff = NULL;
 
-uint32* g_faceIdxBuff = NULL;
-byte* g_facePicBuff = NULL;
-
 uint32* g_cmdIdxBuff = NULL;
 byte* g_cmdGrpBuff = NULL;
-
-//默认调色板数据
-T_RGB g_palette[256];
-
-int g_ex = 0;
-int g_ey = 0;
-
-int g_sFace = 0;
-int g_sStep = 0;
-//场景内坐标, 场景中心点, 方向, 步数
-int g_curScence = 0;
-int g_curEvent = 0;
 int curItem = 0;
 int currentBattle = 0;
 EmInGame g_inGame = 0;
 //当前场景, 事件(在场景中的事件号), 使用物品, 战斗
 //g_inGame: 0-主地图, 1-场景, 2-战场, 3-开头画面
 
-//存档号, 未使用
-int g_saveSlot = 0;
-
 T_RoleData g_roleData;
-#define g_sx	(g_roleData.common.sx)
-#define g_sy	(g_roleData.common.sy)
 
-sint16 itemList[500] = {0};
-
-//S, D文件数据
-sint16 g_scenceData[SCENCE_NUM][SCENCE_LAYER_NUM][SCENCE_WIDTH][SCENCE_HEIGHT] = {{{{0}}}};
-#define g_curScenceData		(g_scenceData[g_curScence])
-
-T_Event g_scenceEventData[SCENCE_NUM][SCENCE_EVENT_NUM];
-#define g_curScenceEventData			(g_scenceEventData[g_curScence])
-#define g_curEventData					(g_curScenceEventData[g_curEvent])
-#define CurScenceXYEventData(sx, xy)	(g_curScenceEventData[g_curScenceData[EmScenceLayerEvent][(sx)][(sy)]])
-
-//当前场景数据
-//0-地面, 1-建筑, 2-物品, 3-事件, 4-建筑高度, 5-物品高度
-uint32 scenceImg[2304][1152];
-//当前场景事件
-//uint32 g_bfSurface[2304][1152] = {0};
-//战场图形映像
-sint16 bField[8][64][64];
 //战场数据
-//0-地面, 1-建筑, 2-人物, 3-可否被选中, 4-攻击范围, 5, 6 ,7-未使用
-sint16 warSta[0x5e];
+////0-地面, 1-建筑, 2-人物, 3-可否被选中, 4-攻击范围, 5, 6 ,7-未使用
+sint16 bField[8][64][64];
+
+//sint16 warSta[0x5e];
 //战场数据, 即war.sta文件的映像
-T_BattleRole bRole[100];
+//T_BattleRole bRole[100];
+
 //战场人物属性
 //0-人物序号, 1-敌我, 2, 3-坐标, 4-面对方向, 5-是否仍在战场, 6-可移动步数, 7-是否行动完毕,
 //8-贴图(未使用), 9-头上显示数字, 10, 11, 12-未使用, 13-已获得经验, 14-是否自动战斗
@@ -121,34 +64,18 @@ int ay = 0;
 int bStatus = 0;
 //战斗状态, 0-继续, 1-胜利, 2-失败
 
-int g_leaveList[100];
-int g_effectList[200];
-int g_levelupList[100];
-int g_matchList[100][3];
+int g_leaveList[100] = {0};
+int g_effectList[200] = {0};
+int g_levelupList[100] = {0};
+int g_matchList[100][3] = {{0}};
 //各类列表, 前四个从文件读入
 
-bool g_fullScreen = FALSE;
 //是否全屏
+bool g_fullScreen = FALSE;
 
-SDL_Surface* g_screenSurface = NULL;
-SDL_Surface* g_scenceSurface = NULL;
-SDL_Surface* g_bfSurface = NULL;
-
-SDL_Event event;				//事件
-TTF_Font* g_HanFont;
-TTF_Font* g_EngFont;
-SDL_Color textColor;
-SDL_Surface* test = NULL;		//字体
-
-Mix_Music* g_music = NULL;
-Mix_Chunk* g_sound = NULL;		//声音
-int exitScenceMusicNum = 0;
-//离开场景的音乐
-char musicName[256] = {0};
-
+//选单所使用的字符串
 char menuString[1024] = {0};
 char menuEngString[1024] = {0};
-//选单所使用的字符串
 
 //扩充指令50所使用的变量 0x7FFF~-0x8000
 int x50[0x7FFF - -0x8000 + 1] = {0};
@@ -158,79 +85,12 @@ int x50[0x7FFF - -0x8000 + 1] = {0};
 * Static Function Declare                                                      *
 *******************************************************************************/
 
-sint32 Random(sint32 a, sint32 b);
+static void InitialRole();
+static void ShowStatus(int role);
 
-void Quit();
-void PlayXMI(int index, int times);
-void StopXMI();
-void PlayWAV(int index, int times);
-void PlayWAVFile(char* filename, int times);
-
-void LoadGame(int slot);
-void SaveGame(int slot);
-
-int WaitAnyKey();
-bool PicInArea(int x, int y, T_PicRect picRect, T_Rect destRect);
-T_Position GetPositionOnScreen(int x, int y, int cx, int cy);
-
-uint32 GetRGBAPixel(uint8 color, uint8 alpha, int highlight);
-uint32 GetPalettePixel(SDL_PixelFormat* format, uint8 color, uint8 alpha, int highlight);
-#define COLOR(c)		GetRGBAPixel((c), 255, 0)
-#define COLORA(c, a)	GetRGBAPixel((c), (a), 0)
-#define COLORH(c, h)	GetRGBAPixel((c), 255, (h))
-void PutPixel(SDL_Surface* surface, int x, int y, uint32 pixel);
-void DrawFrameRectangle(int x, int y, int w, int h, uint8 frmColor, uint8 insColor, uint8 alpha);
-void DrawRLE8Pic(SDL_Surface* surface, int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight);
-
-void DrawPic(SDL_Surface* destSurface, int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight);
-#define DrawPicOnScreen(index, x, y, idxBuffer, picBuffer, highlight) \
-	DrawPic(g_screenSurface, (index), (x), (y), (idxBuffer), (picBuffer), (highlight))
-void DrawBigPicOnScreen(int index, byte* buffer);
-void DrawTitlePic(int index, int x, int y);
-
-void DrawScencePic(int index, int x, int y);
-void DrawScenceWithoutRole(int sx, int sy);
-void DrawRoleOnScence(int x, int y);
-void DrawScenceWithoutUpdate();
-
-void DrawMapPic(int index, int x, int y);
-
-void DrawFacePic(int index, int x, int y);
-void DrawBFPic(int index, int x, int y, int highlight);
-void DrawPicToBFPic(int index, int x, int y);
-void DrawEffect(int index, int x, int y);
-void DrawAction(int index, int x, int y);
-
-char* Utf8ToBig5(char* utf8);
-char* Big5ToUtf8(char* big5);
-
-void DrawFrameText(char* str, uint8 txtColor, uint8 frmColor);
-T_Position DrawText(char* str, int x, int y, uint8 color);
-T_Position DrawShadowText(char* str, int x, int y, uint8 color);
-T_Position DrawBig5Text(char* big5, int x, int y, uint8 color);
-T_Position DrawBig5ShadowText(char* big5, int x, int y, uint8 color);
-
-void* LoadFile(char* filename, void* buffer, size_t size);
-bool GoThrouht(int x, int y, bool* inBoat);
-bool GoThroughScence(int x, int y);
-void DrawScenceOnScreen(int x, int y);
-void ShowScenceName(int scence);
-
-void DrawMap();
-void DrawMapWithoutUpdate();
-void DrawScence();
-void RedrawWithoutUpdate();
-
-void Redraw();
-void ReadFiles();
-void UpdateScreen();
-
-void Start();
-void InitialRole();
-void ShowStatus(int index);
-bool MagicLeveup(int role, int* nextLevelExp);
-void InGame(bool start);
-int InScence(int scence, EmInScence inScence);
+static void Start();
+static void InGame(bool start);
+static void Quit();
 
 /*******************************************************************************
 * Functions                                                                    *
@@ -241,43 +101,9 @@ int main()
 {
 	srand(clock());
 
-	g_utf8ToBig5 = iconv_open("BIG5", "UTF8");
-	g_big5ToUtf8 = iconv_open("UTF8", "BIG5");
-
-	//初始化字体
-	TTF_Init();
-	g_HanFont = TTF_OpenFont(HAN_FONT, g_HanFontSize);
-	g_EngFont = TTF_OpenFont(ENG_FONT, g_EngFontSize);
-	if (g_HanFont == NULL) {
-		//MessageBox(0, PChar(Format("Error:%s!", [SDL_GetError])), "Error", MB_OK || MB_ICONHAND);
-		printf("Error %s\n", SDL_GetError());
-		return 1;
-	}
-
-	//初始化视频系统
-	//Randomize;
-	if ((SDL_Init(SDL_INIT_VIDEO) < 0)) {
-		//MessageBox(0, PChar(Format("Couldn""t initialize SDL : %s", [SDL_GetError])), "Error", MB_OK || MB_ICONHAND);
-		printf("Can't initialize SDL : %s\n",  SDL_GetError());
-		SDL_Quit();
-		return 1;
-	}
-
-	//初始化音频系统
-	SDL_Init(SDL_INIT_AUDIO);
-	Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096);
-	g_music = NULL;
-	//SDL_WM_SetIcon(IMG_Load("icon.png"), 0);
-	g_screenSurface = SDL_SetVideoMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32, SDL_SWSURFACE | g_fullScreen ? SDL_FULLSCREEN : 0);
-
-	if (g_screenSurface == NULL) {
-		//MessageBox(0, PChar(Format("Can't set 640x480x8 video mode : %s", [SDL_GetError])), "Error", MB_OK || MB_ICONHAND);
-		printf("Can't set %dx%d video mode : %s\n", SCREEN_WIDTH, SCREEN_HEIGHT, SDL_GetError());
-		SDL_Quit();
-		exit(1);
-	}
-
-	SDL_WM_SetCaption("All Heros in Kam Yung's Stories - Replicated Edition - Pascal2C", "Pascal: s.weyl");
+	InitialFont();
+	InitialVedio();
+	InitialAudio();
 
 	SDL_EnableKeyRepeat(KEY_REPEAT, KEY_REPEAT);
 
@@ -289,103 +115,18 @@ int main()
 }
 
 //关闭所有已打开的资源, 退出
-void Quit()
+static void Quit()
 {
-	if (g_sound) Mix_FreeChunk(g_sound);
-	if (g_music) Mix_FreeMusic(g_music);
-
-	TTF_CloseFont(g_HanFont);
-	TTF_CloseFont(g_EngFont);
-
-	TTF_Quit();
+	CloseVedio();
 	SDL_Quit();
 
-	iconv_close(g_utf8ToBig5);
-	iconv_close(g_big5ToUtf8);
-
 	exit(0);
-}
-
-//播放音乐
-void PlayXMI(int index, int times)
-{
-	char str[PATH_MAX];
-	sprintf(str, "game%02d.xmi", index);
-
-	if (g_music) Mix_FreeMusic(g_music);
-	g_music = Mix_LoadMUS(str);
-	Mix_VolumeMusic(MIX_MAX_VOLUME / 3);
-	Mix_PlayMusic(g_music, times);
-}
-
-#if 0
-void PlayMP3(filename: pchar; int times = 0); overload()
-{
-	if (fileexists(filename))
-	{
-		g_music = Mix_LoadMUS(filename);
-		Mix_volumemusic(MIX_MAX_VOLUME / 3);
-		Mix_PlayMusic(g_music, times);
-	}
-}
-#endif
-
-//停止当前播放的音乐
-void StopXMI()
-{
-	if (g_music)
-	{
-		Mix_HaltMusic();
-		Mix_FreeMusic(g_music);
-		g_music = NULL;
-	}
-	//  Mix_HaltMusic;
-	//Mix_CloseAudio;
-}
-
-//播放wav音效
-void PlayWAV(int index, int times)
-{
-	char str[PATH_MAX];
-
-	sprintf(str, "e%02d.wav", index);
-
-	if (g_sound) Mix_FreeChunk(g_sound);
-	g_sound = Mix_LoadWAV(str);
-	Mix_PlayChannel(-1, g_sound, times);
-}
-
-#if 0
-void int PlaySound(SoundNum = 0); overload()
-var
-int i = 0;
-str: string;
-{
-	str = "g_sound/e" + format("%2d", [soundnum]) + ".wav";
-	for i = 1 to length(str) do
-		if (str[i] == " ") str[i] = "0";
-	if (fileexists(pchar(str)))
-	{
-		g_sound = Mix_LoadWav(pchar(str));
-		Mix_PlayChannel(-1, g_sound, 0);
-	}
-}
-#endif
-
-void PlayWAVFile(char* filename, int times)
-{
-	if (filename) {
-		g_sound = Mix_LoadWAV(filename);
-		Mix_PlayChannel(-1, g_sound, times);
-	}
 }
 
 //读入存档, 如为0则读入起始存档
 void LoadGame(int slot)
 {
 	char grpName[PATH_MAX];
-
-	g_saveSlot = slot;
 
 	if (slot) {
 		sprintf(grpName, "r%d.grp", slot);
@@ -419,8 +160,6 @@ void SaveGame(int slot)
 {
 	char grpName[PATH_MAX];
 	FILE*  grp = 0;
-
-	g_saveSlot = slot;
 
 	if (slot) {
 		sprintf(grpName, "r%d.grp", slot);
@@ -513,527 +252,6 @@ int WaitKey()
 	return key;
 }
 
-SDL_Color GetSDLColor(uint8 color)
-{
-	uint32 rgba = COLOR(color);
-	SDL_Color sdlColor = {
-		.r = (rgba & 0xff000000) >> 24,
-		.g = (rgba & 0x00ff0000) >> 16,
-		.b = (rgba & 0x0000ff00) >> 8
-	};
-
-	return sdlColor;
-}
-
-uint32 GetRGBAPixel(uint8 color, uint8 alpha, int highlight)
-{
-	uint32 pixel = 0;
-
-	pixel = (((g_palette[color].r << 2) + (g_palette[color].r >> 4) - highlight) << 24)
-		+ (((g_palette[color].g << 2) + (g_palette[color].g >> 4) - highlight) << 16)
-		+ (((g_palette[color].b << 2) + (g_palette[color].b >> 4) - highlight) << 8)
-		+ alpha;
-
-	return pixel;
-}
-
-uint32 GetPalettePixel(SDL_PixelFormat* format, uint8 color, uint8 alpha, int highlight)
-{
-	uint32 pixel = 0;
-
-	if (format) {
-		pixel = SDL_MapRGBA(format,
-			(g_palette[color].r << 2) + (g_palette[color].r >> 4) - highlight,
-			(g_palette[color].g << 2) + (g_palette[color].g >> 4) - highlight,
-			(g_palette[color].b << 2) + (g_palette[color].b >> 4) - highlight,
-			alpha);
-	}
-
-	return pixel;
-}
-
-#if 0
-//显示bmp文件
-void DrawBMP(SDL_Surface* surface, char* filename, int x, int y)
-{
-	SDL_Surface* image;
-	SDL_Rect dest = {
-		.x = x,
-		.y = y,
-		.w = SCREEN_WIDTH,
-		.h = SCREEN_HEIGHT
-	};
-
-	if ((image = SDL_LoadBMP(filename))) {
-		SDL_BlitSurface(image, NULL, surface, &dest);
-
-		SDL_FreeSurface(image);
-	} else {
-		printf("Can't load %s : %s", file_name, SDL_GetError());
-	}
-}
-#endif
-
-void PutPixel(SDL_Surface* surface, int x, int y, uint32 pixel)
-{
-	if (surface && x >= 0 && x < surface->w && y >= 0 && y < surface->h) {
-		byte* pixels = surface->pixels;
-		*(uint32*)(pixels + y * surface->pitch + x * surface->format->BytesPerPixel) = pixel;
-	}
-}
-
-//RLE8图片绘制子程，所有相关子程均对此封装
-void DrawPic(SDL_Surface* surface, int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight)
-{
-	T_PicRect* picRect = NULL;
-	byte* nextPicBuffer = NULL;
-
-	if (index) {
-		picBuffer += *(idxBuffer + index - 1);
-	}
-
-	picRect = (T_PicRect*)picBuffer;
-	picBuffer += sizeof(T_PicRect);
-	nextPicBuffer = picBuffer + *(idxBuffer + index);
-
-	if (surface) {
-		//SDL_LockSurface(surface);
-
-		int px = 0;
-		int py = 0;
-		for (py = 0; py < picRect->h; py++) {
-			if (picBuffer < nextPicBuffer) {
-				byte* nextLine = picBuffer + *picBuffer + 1;
-				picBuffer++;
-
-				px = 0;
-				while (picBuffer < nextLine) {
-					px += *(picBuffer++);
-
-					byte* next = picBuffer + *picBuffer + 1;
-					picBuffer++;
-					for (; picBuffer < next; picBuffer++) {
-						PutPixel(surface, x + px++ - picRect->dx, y + py - picRect->dy, GetPalettePixel(surface->format, *picBuffer, 255, highlight));
-					}
-				}
-			}
-		}
-
-		//SDL_UnlockSurface(surface);
-	}
-}
-
-void DrawBigPicOnScreen(int index, byte* buffer)
-{
-	SDL_Surface* surface = NULL;
-	int px;
-	int py;
-
-	if (buffer) {
-		if ((surface = SDL_CreateRGBSurface(SDL_HWSURFACE, BIG_PIC_WIDTH, BIG_PIC_HEIGHT,
-			32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x00000000))) {
-			//SDL_LockSurface(surface);
-
-			buffer += index * BIG_PIC_SIZE;
-			for (py = 0; py < BIG_PIC_HEIGHT; py++) {
-				for (px = 0; px < BIG_PIC_WIDTH; px++) {
-					PutPixel(surface, px, py, GetPalettePixel(surface->format, *(buffer++), 255, 0));
-				}
-			}
-
-			//SDL_UnlockSurface(surface);
-
-			float zoom = (float)SCREEN_WIDTH / BIG_PIC_WIDTH;
-			int h = BIG_PIC_HEIGHT * zoom;
-			int y = (SCREEN_HEIGHT - h) / 2;
-			//SDL_SoftStretch(surface, NULL, g_screenSurface, &(SDL_Rect){0, y, SCREEN_WIDTH, h});
-			//SDL_BlitSurface(surface, NULL, g_screenSurface, &(SDL_Rect){0, y, SCREEN_WIDTH, h});
-			SDL_Surface* zoomedSurface = NULL;
-			if ((zoomedSurface = zoomSurface(surface, zoom, zoom, TRUE))) {
-				SDL_BlitSurface(zoomedSurface, NULL, g_screenSurface, &(SDL_Rect){0, y, SCREEN_WIDTH, SCREEN_HEIGHT});
-				SDL_FreeSurface(zoomedSurface);
-			}
-
-			SDL_FreeSurface(surface);
-		}
-	}
-}
-
-//获取场景中坐标在Buffer上的位置
-T_Position GetScenceBufferXYPos(int sx, int sy)
-{
-	T_Position pos = {.x = 0, .y = 0};
-	pos.x = -sx * CELL_WIDTH / 2 + sy * CELL_WIDTH / 2 + SCENCE_PIC_WIDTH / 2;
-	pos.y = sx * CELL_HEIGHT / 2 + sy * CELL_HEIGHT / 2 + CELL_HEIGHT / 2;
-
-	return pos;
-}
-
-//获取屏幕原点在场景Pic中的坐标
-T_Position GetScreenPosInScence(int sx, int sy)
-{
-	T_Position pos = {.x = 0, .y = 0};
-	pos.x = -sx * CELL_WIDTH / 2 + sy * CELL_WIDTH / 2 + SCENCE_PIC_WIDTH / 2 - SCREEN_CENTER_X;
-	pos.y = sx * CELL_HEIGHT / 2 + sy * CELL_HEIGHT / 2 + CELL_HEIGHT / 2 - SCREEN_CENTER_Y;
-
-	return pos;
-}
-
-//获取地图中坐标在屏幕上的位置(中心参照)
-T_Position GetMapScenceXYPos(int mx, int my, int cmx, int cmy)
-{
-	T_Position pos = {.x = 0, .y = 0};
-	pos.x = -(mx - cmx) * CELL_WIDTH / 2 + (my - cmy) * CELL_WIDTH / 2 + SCREEN_CENTER_X;
-	pos.y = (mx - cmx) * CELL_HEIGHT / 2 + (my - cmy) * CELL_HEIGHT / 2 + SCREEN_CENTER_Y;
-
-	return pos;
-}
-
-//显示title.grp的内容(即开始的选单)
-void DrawTitlePic(int index, int x, int y)
-{
-	uint32* idxBuffer = NULL;
-	byte* grpBuffer = NULL;
-
-	idxBuffer = LoadFile("title.idx", NULL, 0);
-	grpBuffer = LoadFile("title.grp", NULL, 0);
-
-	if (idxBuffer && grpBuffer) {
-		DrawPicOnScreen(index, x, y, idxBuffer, grpBuffer, 0);
-		UpdateScreen(0);
-
-		free(idxBuffer);
-		free(grpBuffer);
-	}
-}
-
-//判断图像是否在指定范围内
-bool PicInArea(int x, int y, T_PicRect picRect, T_Rect destRect)
-{
-	if (x + picRect.w + picRect.dx >= 0
-			&& x + picRect.dx < destRect.w
-			&& y + picRect.dy + destRect.h >= 0
-			&& y + picRect.dy < destRect.h) {
-		return TRUE;
-	} else {
-		return FALSE;
-	}
-}
-
-
-//显示头像
-void DrawFacePic(int index, int x, int y)
-{
-	DrawPicOnScreen(index, x, y, g_faceIdxBuff, g_facePicBuff, 0);
-}
-
-//显示战场图片
-void DrawBFPic(int index, int x, int y, int highlight)
-{
-	DrawPicOnScreen(index, x, y, g_bfIdxBuff, g_bfPicBuff, highlight);
-}
-
-#if 0
-//仅在某区域显示战场图片
-
-void DrawBFPicInRect(num, px, py, highlight, x, y, w, int h = 0)()
-	var
-	Area: TRect;
-{
-	Area.x = x;
-	Area.y = y;
-	Area.w = w;
-	Area.h = h;
-	DrawPic(num, px, py, @g_bfIdxBuff[0], @g_bfPicBuff[0], Area, NULL, highlight);
-
-}
-#endif
-
-//将战场图片画到映像
-void DrawPicToBFPic(int index, int x, int y)
-{
-	DrawPic(g_bfSurface, index, x, y, g_bfIdxBuff, g_bfPicBuff, 0);
-}
-
-//显示效果图片
-void DrawEffect(int index, int x, int y)
-{
-	DrawPicOnScreen(index, x, y, g_effIdxBuff, g_effectBuff, 0);
-}
-
-//显示人物动作图片
-void DrawAction(int index, int x, int y)
-{
-	DrawPicOnScreen(index, x, y, g_actIdxBuff, g_actionBuff, 0);
-}
-
-//文字
-T_Position DrawText(char* str, int x, int y, uint8 color)
-{
-	T_Position pos;
-
-	SDL_Surface* text = TTF_RenderUTF8_Blended(g_HanFont, str, GetSDLColor(color));
-	if (text) {
-		pos.x = x + text->w;
-		pos.y = y + text->h;
-
-		SDL_BlitSurface(text, NULL, g_screenSurface, &(SDL_Rect){x, y, text->w, text->h});
-
-		SDL_FreeSurface(text);
-	}
-
-	return pos;
-}
-
-#if 0
-//显示英文数字
-T_Position DrawAlphnumText(char* str, int x, int y, uint8 color)
-{
-	T_Position pos;
-
-	SDL_Surface* text = TTF_RenderText_Blended(g_EngFont, str, GetSDLColor(color));
-	if (text) {
-		pos.x = x + text->w;
-		pos.y = y + text->h;
-
-		SDL_BlitSurface(text, NULL, g_screenSurface, &(SDL_Rect){x, y, text->w, text->h});
-
-		SDL_FreeSurface(text);
-	}
-
-	return pos;
-}
-#endif
-
-//显示UTF8中文阴影文字, 即将同样内容显示2次, 间隔1像素
-T_Position DrawShadowText(char* str, int x, int y, uint8 color)
-{
-	T_Position pos;
-
-	if (color >= 2) {
-		DrawText(str, x + 1, y, color - 2);
-	}
-
-	pos = DrawText(str, x, y, color);
-
-	return pos;
-}
-
-#if 0
-//显示英文阴影文字
-
-void DrawEngShadowText(word: PUint16; x_pos = 0;
-		int y_pos = 0; color1, color2: Uint32)()
-{
-	DrawAlphnumText(word, x_pos + 1, y_pos, color2);
-	DrawAlphnumText(word, x_pos, y_pos, color1);
-
-}
-#endif
-
-//显示带边框的文字, 仅用于UTF8
-void DrawFrameText(char* str, uint8 txtColor, uint8 frmColor)
-{
-	uint8 shdColor = txtColor >= 2 ? txtColor -2 : 0xff;
-	SDL_Surface* shadow = TTF_RenderUTF8_Blended(g_HanFont, str, GetSDLColor(shdColor));
-	SDL_Surface* text = TTF_RenderUTF8_Blended(g_HanFont, str, GetSDLColor(txtColor));
-	if (shadow && text) {
-		int x = SCREEN_CENTER_X - (text->w + FRAME_TEXT_PADDING * 2 + 1) /2;
-		int y = SCREEN_CENTER_Y - (text->h + FRAME_TEXT_PADDING * 2) /2;
-
-		DrawFrameRectangle(x, y, text->w + FRAME_TEXT_PADDING * 2 + 1, text->h + FRAME_TEXT_PADDING * 2, frmColor, 0, FRAME_TEXT_ALPHA);
-		//DrawFrameRectangle(x + 1, y + 1, text->w + FRAME_TEXT_PADDING * 2 + 1 -2 , text->h + FRAME_TEXT_PADDING * 2 - 2, frmColor, 0, FRAME_TEXT_ALPHA);
-
-		SDL_BlitSurface(shadow, NULL, g_screenSurface, &(SDL_Rect){x + FRAME_TEXT_PADDING + 1, y + FRAME_TEXT_PADDING, g_screenSurface->w, g_screenSurface->h});
-		SDL_BlitSurface(text, NULL, g_screenSurface, &(SDL_Rect){x + FRAME_TEXT_PADDING, y + FRAME_TEXT_PADDING, g_screenSurface->w, g_screenSurface->h});
-
-		SDL_FreeSurface(shadow);
-		SDL_FreeSurface(text);
-	}
-}
-
-//显示big5文字
-T_Position DrawBig5Text(char* big5, int x, int y, uint8 color)
-{
-	T_Position pos;
-
-	if (big5) {
-		pos = DrawText(Utf8ToBig5(big5), x, y, color);
-	}
-
-	return pos;
-}
-
-//UTF8转为big5, 仅用于输入姓名
-char* Utf8ToBig5(char* utf8)
-{
-	static char big5[TEXT_BIG5_LEN];
-	memset(big5, 0, TEXT_BIG5_LEN);
-
-	if (utf8) {
-		size_t utf8Len = strlen(utf8);
-		size_t big5Len = TEXT_BIG5_LEN;
-
-		char* in = utf8;
-		char* out = big5;
-		iconv(g_utf8ToBig5, &in, &utf8Len, &out, &big5Len);
-	}
-
-	return utf8;
-}
-
-//big5转为UTF8
-char* Big5ToUtf8(char* big5)
-{
-	static char utf8[TEXT_UTF8_LEN];
-	memset(utf8, 0, TEXT_UTF8_LEN);
-
-	if (big5) {
-		size_t big5Len = strlen(big5);
-		size_t utf8Len = TEXT_UTF8_LEN;
-
-		char* in = big5;
-		char* out = utf8;
-		iconv(g_big5ToUtf8, &in, &big5Len, &out, &utf8Len);
-	}
-
-	return utf8;
-}
-
-//显示big5阴影文字
-T_Position DrawBig5ShadowText(char* big5, int x, int y, uint8 color)
-{
-	T_Position pos;
-
-	if (big5) {
-		char* utf8 = Utf8ToBig5(big5);
-		if (color >= 2) {
-			DrawText(utf8, x + 1, y, color - 2);
-		}
-		pos = DrawText(utf8, x, y, color);
-	}
-
-	return pos;
-}
-
-//画带边框矩形(x坐标, y坐标, 宽, 高, 内部颜色, 边框颜色, 透明度)
-void DrawFrameRectangle(int x, int y, int w, int h, uint8 frmColor, uint8 insColor, uint8 alpha)
-{
-	//SDL_LockSurface(g_screenSurface);
-	sint16 vx[RECTANGLE_N] = {x + RECTANGLE_D, x + w - RECTANGLE_D, x + w, x + w, x + w - RECTANGLE_D, x + RECTANGLE_D, x, x};
-	sint16 vy[RECTANGLE_N] = {y, y, y + RECTANGLE_D, y + h - RECTANGLE_D, y + h, y + h, y + h - RECTANGLE_D, y + RECTANGLE_D};
-
-	filledPolygonColor(g_screenSurface, vx, vy, RECTANGLE_N, COLORA(insColor, alpha));
-	polygonColor(g_screenSurface, vx, vy, RECTANGLE_N, COLOR(frmColor));
-	//SDL_UnlockSurface(g_screenSurface);
-}
-
-//判定场景内某个位置能否行走
-bool GoThroughScence(int sx, int sy)
-{
-	bool goThroughScence = FALSE;
-
-	if (sx >= 0 && sx < SCENCE_WIDTH && sy >= 0 && sy < SCENCE_HEIGHT) {
-		goThroughScence = g_curScenceData[EmScenceLayerBuilding][sx][sy] == 0;
-		goThroughScence &= g_curScenceData[EmScenceLayerEvent][sx][sy] < 0
-			|| !CurScenceXYEventData(sx, sy).block;
-
-		goThroughScence &= g_curScenceData[EmScenceLayerGround][sx][sy]
-			< 358 || g_curScenceData[EmScenceLayerGround][sx][sy] > 362;
-		goThroughScence &= g_curScenceData[EmScenceLayerGround][sx][sy]
-			< 522 || g_curScenceData[EmScenceLayerGround][sx][sy] > 1022;
-		goThroughScence &= g_curScenceData[EmScenceLayerGround][sx][sy]
-			< 1324 || g_curScenceData[EmScenceLayerGround][sx][sy] > 1330;
-		goThroughScence &= g_curScenceData[EmScenceLayerGround][sx][sy] != 1348;
-	}
-
-	return goThroughScence;
-}
-
-//将战场映像画到屏幕
-void DrawBFieldOnScreen(int x, int y)
-{
-	int maxW = g_scenceSurface->w - x;
-	int maxH = g_scenceSurface->h - y;
-	SDL_Rect srcRect = {
-		x = x, .y = y,
-		.w = SCREEN_WIDTH < maxW ? SCREEN_WIDTH : maxW,
-		.h = SCREEN_HEIGHT < maxH ? SCREEN_HEIGHT : maxH
-	};
-
-	SDL_Rect dstRect = {
-		x = 0, .y = 0,
-		.w = SCREEN_WIDTH,
-		.h = SCREEN_HEIGHT
-	};
-
-	SDL_BlitSurface(g_bfSurface, &srcRect, g_screenSurface, &dstRect);
-}
-
-//显示场景图片
-void DrawScencePic(int index, int x, int y)
-{
-	DrawPicOnScreen(index, x, y, g_scenceIdxBuff, g_scencePicBuff, 0);
-}
-
-//生成场景映像
-void DrawScenceWithoutUpdate()
-{
-	int sx;
-	int sy;
-	int cx;
-	int cy;
-
-	//如在事件中, 则以g_ex, g_ey为中心, 否则以主角坐标为中心
-	if (g_curEvent != EVENT_NOTHING) {
-		cx = g_ex;
-		cy = g_ey;
-	} else {
-		cx = g_sx;
-		cy = g_sy;
-	}
-
-	for (sy = 0; sy < SCENCE_WIDTH; sy++) {
-		for (sx = 0; sx < SCENCE_WIDTH; sx++) {
-			T_Position pos = GetMapScenceXYPos(sx, sy, cx, cy);
-			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH)
-				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT)) {
-				DrawScencePic(g_curScenceData[EmScenceLayerGround][sx][sy] / 2, pos.x, pos.y);
-
-				if (g_curScenceData[EmScenceLayerBuilding][sx][sy] > 0) {
-					DrawScencePic(g_curScenceData[EmScenceLayerBuilding][sx][sy] / 2,
-						pos.x, pos.y - g_curScenceData[EmScenceLayerBuildingOffset][sx][sy]);
-				}
-
-					//画主角
-				if (sx == g_sx && sy == g_sy									//主角位置
-					&& (g_curEvent == EVENT_NOTHING								//没有Event
-						|| g_curEventData.x != g_sx || g_curEventData.y != g_sy	//不在Event位置
-						|| g_curEventData.pic1 <= 0)) {							//Event没有图片
-					DrawScencePic(WALK_PIC_OFFSET + g_sFace * (WALK_PIC_NUM) + g_sStep, pos.x, pos.y - g_curScenceData[EmScenceLayerEvent][g_sx][g_sy]);
-				}
-
-				if (g_curScenceData[EmScenceLayerSky][sx][sy] > 0) {
-					DrawScencePic(g_curScenceData[EmScenceLayerSky][sx][sy] / 2,
-						pos.x, pos.y - g_curScenceData[EmScenceLayerSkyOffset][sx][sy]);
-				}
-
-				if (g_curScenceData[EmScenceLayerEvent][sx][sy] >= 0 && CurScenceXYEventData(sx, xy).pic1 > 0) {
-					DrawScencePic(CurScenceXYEventData(sx, xy).pic1 / 2,
-						pos.x, pos.y - g_curScenceData[EmScenceLayerBuildingOffset][sx][sy]);
-				}
-			}
-		}
-	}
-}
-
-//画场景到屏幕
-void DrawScence()
-{
-	DrawScenceWithoutUpdate();
-	UpdateScreen();
-}
-
 //重画屏幕
 void RedrawWithoutUpdate()
 {
@@ -1081,12 +299,6 @@ void DrawBFieldWithoutRole(x, int y = 0)()
 
 }
 #endif
-
-//画不含边框的矩形, 用于对话和黑屏
-void DrawRectangle(int x, int y, int w, int h, uint8 color, uint8 alpha)
-{
-	boxColor(g_screenSurface, x, y, x + w, y + h, COLORA(color, alpha));
-}
 
 #if 0
 //更改场景映像, 用于动画, 场景内动态效果
@@ -1303,7 +515,7 @@ void UpdateScreen()
 }
 
 //显示开头画面
-void Start()
+static void Start()
 {
 	ReadFiles();
 
@@ -1401,7 +613,7 @@ sint32 Random(sint32 a, sint32 b)
 }
 
 //初始化主角属性
-void InitialRole()
+static void InitialRole()
 {
 	T_Role* hero = &g_roleData.roles[0];
 
@@ -1465,234 +677,7 @@ void InitialRole()
 
 #endif
 
-void ShowScenceName(int scence)
-{
-	//UpdateScence();
-	//显示场景名
-	DrawFrameText(Big5ToUtf8(g_roleData.scences[scence].name), TEXT_NORMAL_COLOR, TEXT_COLOR);
-	UpdateScreen();
-
-	WaitKey();
-}
-
-//Walk in a scence, the returned value is the scence number when you exit. If it is -1.
-//InScence(1) means the new game.
-//在内场景行走, 如参数为1表示新游戏
-int InScence(int scence, EmInScence inScence)
-{
-	int ret = 0;
-
-	int lastSx = g_sx;
-	int lastSy = g_sy;
-	uint32* lastIdxBuff = g_scenceIdxBuff;
-	byte* lastPicBuff = g_scencePicBuff;
-	SDL_Surface* lastSurface = g_scenceSurface;
-
-	if ((g_scenceSurface = SDL_CreateRGBSurface(SDL_HWSURFACE, SCENCE_PIC_WIDTH, SCENCE_PIC_HEIGHT,
-					32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x00000000))) {
-		//uint32 next_time = SDL_GetTicks();
-
-		g_curEvent = EVENT_NOTHING;
-		g_inGame = EmInGameScence;
-		g_curScence = scence;
-		g_sFace = g_mFace;
-		g_sStep = 0;
-
-		char smpFilename[PATH_MAX];
-		char sdxFilename[PATH_MAX];
-		sprintf(smpFilename, "smp%03d", g_curScence);
-		sprintf(sdxFilename, "sdx%03d", g_curScence);
-
-		if ((g_scenceIdxBuff = LoadFile(sdxFilename, NULL, 0)) && (g_scencePicBuff = LoadFile(smpFilename, NULL, 0))) {
-			//改变音乐
-			if (g_roleData.scences[g_curScence].entranceMusic >= 0) {
-				StopXMI();
-				PlayXMI(g_roleData.scences[g_curScence].entranceMusic, -1);
-			}
-
-			switch (inScence) {
-				case EmInScenceStart:
-					g_sx = GAME_START_SX;
-					g_sy = GAME_START_SY;
-					g_ex = g_sx;
-					g_ey = g_sy;
-					break;
-				case EmInScenceJump:
-					g_sx = g_roleData.scences[g_curScence].jumpEntranceX;
-					g_sy = g_roleData.scences[g_curScence].jumpEntranceY;
-					break;
-				case EmInScenceEnter:
-				default:
-					g_sx = g_roleData.scences[g_curScence].entranceX;
-					g_sy = g_roleData.scences[g_curScence].entranceY;
-					break;
-			}
-
-			CmdScreenFadeIn(NULL);
-
-			if (inScence == EmInScenceStart) {
-				g_curEvent = EVENT_GAME_START;
-				//**Callevent(EVENT_GAME_START);
-				g_curEvent = EVENT_NOTHING;
-			} else {
-				ShowScenceName(g_curScence);
-			}
-
-				//是否有第3类事件位于场景入口
-				//***CheckEvent3;
-
-			while (TRUE) {
-				//检查是否位于出口
-				if ((g_sx == g_roleData.scences[g_curScence].exitX[0] && g_sy == g_roleData.scences[g_curScence].exitY[0])
-						|| (g_sx == g_roleData.scences[g_curScence].exitX[1] && g_sy == g_roleData.scences[g_curScence].exitY[1])
-						|| (g_sx == g_roleData.scences[g_curScence].exitX[2] && g_sy == g_roleData.scences[g_curScence].exitY[2])) {
-					g_inGame = EmInGameMap;
-					ret = -1;
-					break;
-				}
-
-				//检查是否跳转
-				if (g_sx == g_roleData.scences[g_curScence].jumpX && g_sy == g_roleData.scences[g_curScence].jumpY && g_roleData.scences[g_curScence].jumpScence >= 0) {
-					CmdScreenFadeOut(NULL);
-
-					EmInScence jumpInScence =
-						g_roleData.scences[g_curScence].mapEntrance1X
-						? EmInScenceEnter : EmInScenceJump;
-					InScence(g_roleData.scences[g_curScence].jumpScence, jumpInScence);
-
-					g_curScence = scence;
-					g_sStep = 0;
-
-					//InitialScence(g_curScence);
-					CmdScreenFadeIn(NULL);
-
-					ShowScenceName(g_curScence);
-				}
-
-				DrawScence();
-
-				//场景内动态效果
-				/*
-				now = SDL_GetTicks();
-				if (now > next_time) {
-					for (i = 0; i < SCENCE_EVENT_NUM; i++) {
-						if (g_curScenceEventData[i].fps > 0 || g_curScenceEventData[i].pic3 < g_curScenceEventData[i].pic2) {
-							//屏蔽了旗子的动态效果, 因贴图太大不好处理
-							if (g_curScenceEventData[i].pic1 < 5498 || g_curScenceEventData[i].pic1 > 5692) {
-								g_curScenceEventData[i].pic1 = g_curScenceEventData[i].pic1 + 2;
-								if (g_curScenceEventData[i].pic1 > g_curScenceEventData[i].pic2) {
-									g_curScenceEventData[i].pic1 = g_curScenceEventData[i].pic3;
-								}
-
-								updatescence(g_curScenceEventData[ i, 10], g_curScenceEventData[ i, 9]);
-							}
-						}
-						next_time = now + 200;
-						DrawScence;
-						SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-					}
-				}
-				*/
-
-				int sx = g_sx;
-				int sy = g_sy;
-				int key = PollKey();
-				switch (key) {
-					case KEYUP:
-						g_sStep = 0;
-						break;
-					case SDLK_ESCAPE:
-						//*********MenuEsc;
-						break;
-					case SDLK_RETURN:
-					case SDLK_SPACE:
-						sx = g_sx;
-						sy = g_sy;
-						switch (g_sFace) {
-							case 0:
-								sx--;
-								break;
-							case 1:
-								sy++;
-								break;
-							case 2:
-								sy--;
-								break;
-							case 3:
-								sx++;
-								break;
-							default:
-								break;
-						}
-
-						//如有则调用事件
-						if (g_curScenceData[EmScenceLayerEvent][sx][sy] >= 0) {
-							g_curEvent = g_curScenceData[EmScenceLayerEvent][sx][sy];
-							if (g_curEventData.actionEvent >= 0) {
-								//CallEvent(CurScenceXYEventData(sx, sy).g_curEventData.actionEvent);
-							}
-							g_curEvent = EVENT_NOTHING;
-						}
-						break;
-					case SDLK_UP:
-						g_sFace = 0;
-						if (++g_sStep >= WALK_PIC_NUM) g_sStep = 1;
-						if (GoThroughScence(g_sx - 1, g_sy)) {
-							g_sx--;
-						}
-						break;
-					case SDLK_RIGHT:
-						g_sFace = 1;
-						if (++g_sStep >= WALK_PIC_NUM) g_sStep = 1;
-						if (GoThroughScence(g_sx, g_sy + 1)) {
-							g_sy++;
-						}
-						break;
-					case SDLK_LEFT:
-						g_sFace = 2;
-						if (++g_sStep >= WALK_PIC_NUM) g_sStep = 1;
-						if (GoThroughScence(g_sx, g_sy - 1)) {
-							g_sy--;
-						}
-						break;
-					case SDLK_DOWN:
-						g_sFace = 3;
-						if (++g_sStep >= WALK_PIC_NUM) g_sStep = 1;
-						if (GoThroughScence(g_sx + 1, g_sy)) {
-							g_sx++;
-						}
-						break;
-					default:
-						break;
-				}
-			}
-
-			if (g_roleData.scences[g_curScence].exitMusic >= 0) {
-				StopXMI();
-				PlayXMI(g_roleData.scences[g_curScence].exitMusic, -1);
-			}
-
-			CmdScreenFadeOut(NULL);
-			free(g_scenceIdxBuff);
-			free(g_scencePicBuff);
-		}
-
-		SDL_FreeSurface(g_scenceSurface);
-	}
-
-	g_sx = lastSx;
-	g_sy = lastSy;
-	g_scenceIdxBuff = lastIdxBuff;
-	g_scencePicBuff = lastPicBuff;
-
-	g_scenceSurface = lastSurface;
-
-	g_mFace = g_sFace;// = 3 - g_sFace;
-
-	return ret;
-}
-
-void InGame(bool start)
+static void InGame(bool start)
 {
 	if (start) {
 	//	InScence(SCENCE_HOME, EmInScenceStart);
@@ -3060,7 +2045,7 @@ bool MagicLeveup(int role, int* nextLevelExp)
 }
 
 //显示状态
-void ShowStatus(int role)
+static void ShowStatus(int role)
 {
 	T_Role* hero = &g_roleData.roles[role];
 
@@ -7582,5 +6567,33 @@ str: widestring;
 
 }
 
+}
+
+//显示战场图片
+static void DrawBFPic(int index, int x, int y, int highlight)
+{
+	DrawPicOnScreen(index, x, y, g_bfIdxBuff, g_bfPicBuff, highlight);
+}
+#endif
+
+#if 0
+//将战场映像画到屏幕
+void DrawBFieldOnScreen(int x, int y)
+{
+	int maxW = g_bfSurface->w - x;
+	int maxH = g_bfSurface->h - y;
+	SDL_Rect srcRect = {
+		x = x, .y = y,
+		.w = SCREEN_WIDTH < maxW ? SCREEN_WIDTH : maxW,
+		.h = SCREEN_HEIGHT < maxH ? SCREEN_HEIGHT : maxH
+	};
+
+	SDL_Rect dstRect = {
+		x = 0, .y = 0,
+		.w = SCREEN_WIDTH,
+		.h = SCREEN_HEIGHT
+	};
+
+	SDL_BlitSurface(g_bfSurface, &srcRect, g_screenSurface, &dstRect);
 }
 #endif

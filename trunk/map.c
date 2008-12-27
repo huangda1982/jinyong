@@ -8,23 +8,11 @@
 * Headers                                                                      *
 *******************************************************************************/
 
-#include <limits.h>
-#include <iconv.h>
-#include <time.h>
-
-#include <SDL/SDL.h>
-#include <SDL/SDL_ttf.h>
-#include <SDL/SDL_events.h>
-#include <SDL/SDL_video.h>
-#include <SDL/SDL_rotozoom.h>
-#include <SDL/SDL_mixer.h>
-#include <SDL/SDL_gfxPrimitives.h>
-
-#include "const.h"
-#include "typedef.h"
-#include "map.h"
+#include "draw.h"
 #include "game.h"
 #include "cmd.h"
+
+#include "map.h"
 
 /*******************************************************************************
 * Global Variables                                                             *
@@ -54,60 +42,8 @@ bool g_ship = FALSE;
 * Functions                                                                    *
 *******************************************************************************/
 
-//初始化入口
-void InitialMapEntrances()
-{
-	memset(g_entrances, 0xff, sizeof(g_entrances));
-	int i;
-	for (i = 0; i < SCENCE_NUM; i++) {
-		g_entrances[g_roleData.scences[i].mapEntrance1X][g_roleData.scences[i].mapEntrance1Y] = i;
-		g_entrances[g_roleData.scences[i].mapEntrance2X][g_roleData.scences[i].mapEntrance2Y] = i;
-	}
-}
-
-//判定主地图某个位置能否行走, 是否变成船
-bool GoThroughMap(int mx, int my)
-{
-	bool GoThroughMap = FALSE;
-
-	if (mx >= 0 && mx < MAP_WIDTH && my >= 0 && my < MAP_HEIGHT) {
-		GoThroughMap = g_buildingX[mx][my] == 0;
-		GoThroughMap &= g_map[mx][my] != 838;
-		GoThroughMap &= g_map[mx][my] < 621 || g_map[mx][my] > 670;
-	}
-
-	g_ship = g_map[mx][my] >= 358 && g_map[mx][my] <= 362;
-	g_ship |= g_map[mx][my] >= 506 && g_map[mx][my] <= 670;
-	g_ship |= g_map[mx][my] >= 1016 && g_map[mx][my] <= 1022;
-
-	return GoThroughMap;
-}
-
-//检测是否处于某入口, 并是否达成进入条件
-bool GoIn(int mx, int my)
-{
-	bool goIn = FALSE;
-
-	int scence = -1;
-	if ((scence = g_entrances[mx][my] >= 0)) {
-		if ((g_roleData.scences[scence].enCondition == 0)) {
-			goIn = TRUE;
-		} else if ((g_roleData.scences[scence].enCondition == 2)) { //是否有人轻功超过70
-			int i;
-			for (i = 0; i < MAX_TEAM_ROLE; i++) {
-				if (g_roleData.common.team[i] >= 0 && g_roleData.roles[g_roleData.common.team[i]].speed > 70) {
-					goIn = TRUE;
-					break;
-				}
-			}
-		}
-	}
-
-	return goIn;
-}
-
 //显示主地图贴图
-void DrawMapPic(int index, int x, int y)
+static void DrawMapPic(int index, int x, int y)
 {
 	DrawPicOnScreen(index, x, y, g_mapIdxBuff, g_mapPicBuff, 0);
 }
@@ -133,15 +69,24 @@ void DrawMapWithoutUpdate()
 		}
 	}
 
+	bool buildingFlag[MAP_WIDTH][MAP_HEIGHT] = {{FALSE}};
 	for (my = 0; my < MAP_HEIGHT; my++) {
 		for (mx = 0; mx < MAP_WIDTH; mx++) {
-			T_Position pos = GetMapScenceXYPos(mx, my, cx, cy);
+			//s.weyl说游戏中xy是反的，开始没在意，现在终于信了。
+			int by = g_buildingX[mx][my];
+			int bx = g_buildingY[mx][my];
+			T_Position pos = GetMapScenceXYPos(bx, by, cx, cy);
 			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH)
 				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT)) {
-				if (g_building[mx][my] > 0) {
-					DrawMapPic(g_building[mx][my] / 2, pos.x, pos.y);
+				if (!buildingFlag[bx][by] && g_building[bx][by] > 0) {
+					DrawMapPic(g_building[bx][by] / 2, pos.x, pos.y);
+					buildingFlag[bx][by] = TRUE;
 				}
+			}
 
+			pos = GetMapScenceXYPos(mx, my, cx, cy);
+			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH)
+				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT)) {
 				if (mx == g_mx && my == g_my) {
 					if (g_ship) {
 						DrawMapPic(SHIP_PIC_OFFSET + g_mFace * SHIP_PIC_NUM + g_mShip, pos.x, pos.y);
@@ -230,10 +175,62 @@ void DrawMapWithoutUpdate()
 }
 
 //显示主地图场景于屏幕
-void DrawMap()
+static void DrawMap()
 {
 	DrawMapWithoutUpdate();
 	UpdateScreen();
+}
+
+//初始化入口
+void InitialMapEntrances()
+{
+	memset(g_entrances, 0xff, sizeof(g_entrances));
+	int i;
+	for (i = 0; i < SCENCE_NUM; i++) {
+		g_entrances[g_roleData.scences[i].mapEntrance1X][g_roleData.scences[i].mapEntrance1Y] = i;
+		g_entrances[g_roleData.scences[i].mapEntrance2X][g_roleData.scences[i].mapEntrance2Y] = i;
+	}
+}
+
+//判定主地图某个位置能否行走, 是否变成船
+static bool GoThroughMap(int mx, int my)
+{
+	bool GoThroughMap = FALSE;
+
+	if (mx >= 0 && mx < MAP_WIDTH && my >= 0 && my < MAP_HEIGHT) {
+		GoThroughMap = g_buildingX[mx][my] == 0;
+		GoThroughMap &= g_map[mx][my] != 838;
+		GoThroughMap &= g_map[mx][my] < 621 || g_map[mx][my] > 670;
+	}
+
+	g_ship = g_map[mx][my] >= 358 && g_map[mx][my] <= 362;
+	g_ship |= g_map[mx][my] >= 506 && g_map[mx][my] <= 670;
+	g_ship |= g_map[mx][my] >= 1016 && g_map[mx][my] <= 1022;
+
+	return GoThroughMap;
+}
+
+//检测是否处于某入口, 并是否达成进入条件
+static bool GoIn(int mx, int my)
+{
+	bool goIn = FALSE;
+
+	int scence = -1;
+	if ((scence = g_entrances[mx][my] >= 0)) {
+		if ((g_roleData.scences[scence].enCondition == 0)) {
+			goIn = TRUE;
+		} else if ((g_roleData.scences[scence].enCondition == 2)) { //是否有人轻功超过70
+			int i;
+			for (i = 0; i < MAX_TEAM_ROLE; i++) {
+				if (g_roleData.common.team[i] >= 0 && g_roleData.roles[g_roleData.common.team[i]].speed > 70) {
+					goIn = TRUE;
+					break;
+				}
+			}
+		}
+	}
+
+	return goIn;
 }
 
 //于主地图行走
@@ -288,8 +285,11 @@ void InMap()
 
 		//主地图动态效果, 实际仅有主角的动作
 		uint32 now = SDL_GetTicks();
-		if (now > next_time) {
-			if (g_mStep || ++g_mRest >= REST_PIC_NUM + 1) {
+		if (g_mStep) {
+			g_mRest = 0;
+			next_time = now + 3000;
+		} else if (now > next_time) {
+			if (++g_mRest >= REST_PIC_NUM + 1) {
 				g_mRest = 0;
 				next_time = now + 3000;
 			} else {
