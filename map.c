@@ -43,10 +43,8 @@ bool g_ship = FALSE;
 *******************************************************************************/
 
 //显示主地图贴图
-static void DrawMapPic(int index, int x, int y)
-{
+#define DrawMapPic(index, x, y) \
 	DrawPicOnScreen(index, x, y, g_mapIdxBuff, g_mapPicBuff, 0);
-}
 
 void DrawMapWithoutUpdate()
 {
@@ -58,8 +56,8 @@ void DrawMapWithoutUpdate()
 	for (my = 0; my < MAP_HEIGHT; my++) {
 		for (mx = 0; mx < MAP_WIDTH; mx++) {
 			T_Position pos = GetMapScenceXYPos(mx, my, cx, cy);
-			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH)
-				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT)) {
+			/*if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH)
+				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT))*/ {
 				DrawMapPic(g_map[mx][my] / 2, pos.x, pos.y);
 
 				if (g_ground[mx][my] > 0) {

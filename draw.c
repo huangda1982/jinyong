@@ -145,30 +145,37 @@ void DrawPic(SDL_Surface* surface, int index, int x, int y, uint32* idxBuffer, b
 	T_PicRect* picRect = NULL;
 	byte* nextPicBuffer = NULL;
 
-	if (index) {
-		picBuffer += *(idxBuffer + index - 1);
-	}
+	if (idxBuffer && picBuffer) {
+		if (index) {
+			picBuffer += *(idxBuffer + index - 1);
+		}
 
-	picRect = (T_PicRect*)picBuffer;
-	picBuffer += sizeof(T_PicRect);
-	nextPicBuffer = picBuffer + *(idxBuffer + index);
+		picRect = (T_PicRect*)picBuffer;
+		picBuffer += sizeof(T_PicRect);
+		nextPicBuffer = picBuffer + *(idxBuffer + index);
 
-	if (surface) {
-		int px = 0;
-		int py = 0;
-		for (py = 0; py < picRect->h; py++) {
-			if (picBuffer < nextPicBuffer) {
-				byte* nextLine = picBuffer + *picBuffer + 1;
-				picBuffer++;
-
-				px = 0;
-				while (picBuffer < nextLine) {
-					px += *(picBuffer++);
-
-					byte* next = picBuffer + *picBuffer + 1;
+		int l = x - picRect->dx;
+		int t = y - picRect->dy;
+		int r = x + picRect->w - picRect->dx;
+		int b = y + picRect->h - picRect->dy;
+		if (surface
+			&& ((l < surface->w && t < surface->h) || (r >= 0 && b >= 0))) {
+			int px = 0;
+			int py = 0;
+			for (py = 0; py < picRect->h; py++) {
+				if (picBuffer < nextPicBuffer) {
+					byte* nextLine = picBuffer + *picBuffer + 1;
 					picBuffer++;
-					for (; picBuffer < next; picBuffer++) {
-						PutPixel(surface, x + px++ - picRect->dx, y + py - picRect->dy, GetPalettePixel(surface->format, *picBuffer, 255, highlight));
+
+					px = 0;
+					while (picBuffer < nextLine) {
+						px += *(picBuffer++);
+
+						byte* next = picBuffer + *picBuffer + 1;
+						picBuffer++;
+						for (; picBuffer < next; picBuffer++) {
+							PutPixel(surface, l + px++, t + py, GetPalettePixel(surface->format, *picBuffer, 255, highlight));
+						}
 					}
 				}
 			}
@@ -315,7 +322,7 @@ void InitialFont()
 
 T_Position DrawText(char* str, int x, int y, uint8 color)
 {
-	T_Position pos;
+	T_Position pos = {.x = 0, .y = 0};
 
 	SDL_Surface* text = TTF_RenderUTF8_Blended(g_HanFont, str, GetSDLColor(color));
 	if (text) {
@@ -333,7 +340,7 @@ T_Position DrawText(char* str, int x, int y, uint8 color)
 //显示UTF8中文阴影文字, 即将同样内容显示2次, 间隔1像素
 T_Position DrawShadowText(char* str, int x, int y, uint8 color)
 {
-	T_Position pos;
+	T_Position pos = {.x = 0, .y = 0};
 
 	if (color >= 2) {
 		DrawText(str, x + 1, y, color - 2);
@@ -347,7 +354,7 @@ T_Position DrawShadowText(char* str, int x, int y, uint8 color)
 //显示big5阴影文字
 T_Position DrawBig5ShadowText(char* big5, int x, int y, uint8 color)
 {
-	T_Position pos;
+	T_Position pos = {.x = 0, .y = 0};
 
 	if (big5) {
 		char* utf8 = Utf8ToBig5(big5);
@@ -384,7 +391,7 @@ void DrawFrameText(char* str, uint8 txtColor, uint8 frmColor)
 //显示BIG5文字
 T_Position DrawBig5Text(char* big5, int x, int y, uint8 color)
 {
-	T_Position pos;
+	T_Position pos = {.x = 0, .y = 0};
 
 	if (big5) {
 		pos = DrawText(Utf8ToBig5(big5), x, y, color);

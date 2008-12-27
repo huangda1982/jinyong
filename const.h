@@ -79,7 +79,7 @@
 *******************************************************************************/
 
 #define KEY_REPEAT_DELAY	200
-#define KEY_REPEAT			50
+#define KEY_REPEAT			30
 
 #define KEYUP	-1
 
