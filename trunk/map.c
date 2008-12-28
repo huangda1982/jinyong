@@ -53,11 +53,11 @@ void DrawMapWithoutUpdate()
 	int cx = g_mx;
 	int cy = g_my;
 
-	for (my = 0; my < MAP_HEIGHT; my++) {
 		for (mx = 0; mx < MAP_WIDTH; mx++) {
+	for (my = 0; my < MAP_HEIGHT; my++) {
 			T_Position pos = GetMapScenceXYPos(mx, my, cx, cy);
-			/*if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH)
-				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT))*/ {
+			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH + 200)
+				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT + 200)) {
 				DrawMapPic(g_map[mx][my] / 2, pos.x, pos.y);
 
 				if (g_ground[mx][my] > 0) {
@@ -68,14 +68,14 @@ void DrawMapWithoutUpdate()
 	}
 
 	bool buildingFlag[MAP_WIDTH][MAP_HEIGHT] = {{FALSE}};
-	for (my = 0; my < MAP_HEIGHT; my++) {
 		for (mx = 0; mx < MAP_WIDTH; mx++) {
+	for (my = 0; my < MAP_HEIGHT; my++) {
 			//s.weyl说游戏中xy是反的，开始没在意，现在终于信了。
 			int by = g_buildingX[mx][my];
 			int bx = g_buildingY[mx][my];
 			T_Position pos = GetMapScenceXYPos(bx, by, cx, cy);
-			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH)
-				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT)) {
+			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH + 200)
+				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT + 200)) {
 				if (!buildingFlag[bx][by] && g_building[bx][by] > 0) {
 					DrawMapPic(g_building[bx][by] / 2, pos.x, pos.y);
 					buildingFlag[bx][by] = TRUE;
@@ -83,8 +83,8 @@ void DrawMapWithoutUpdate()
 			}
 
 			pos = GetMapScenceXYPos(mx, my, cx, cy);
-			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH)
-				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT)) {
+			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH + 200)
+				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT + 200)) {
 				if (mx == g_mx && my == g_my) {
 					if (g_ship) {
 						DrawMapPic(SHIP_PIC_OFFSET + g_mFace * SHIP_PIC_NUM + g_mShip, pos.x, pos.y);
