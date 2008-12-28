@@ -154,12 +154,16 @@ void DrawPic(SDL_Surface* surface, int index, int x, int y, uint32* idxBuffer, b
 		picBuffer += sizeof(T_PicRect);
 		nextPicBuffer = picBuffer + *(idxBuffer + index);
 
+		picRect->dx = 0;
+		picRect->dy = 0;
+
 		int l = x - picRect->dx;
 		int t = y - picRect->dy;
 		int r = x + picRect->w - picRect->dx;
 		int b = y + picRect->h - picRect->dy;
 		if (surface
 			&& ((l < surface->w && t < surface->h) || (r >= 0 && b >= 0))) {
+			SDL_LockSurface(surface);
 			int px = 0;
 			int py = 0;
 			for (py = 0; py < picRect->h; py++) {
@@ -179,6 +183,7 @@ void DrawPic(SDL_Surface* surface, int index, int x, int y, uint32* idxBuffer, b
 					}
 				}
 			}
+			SDL_UnlockSurface(surface);
 		}
 	}
 }
