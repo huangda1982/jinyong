@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-g -Wall -O3
 
-TARGET=jinyong
+TARGET=jy
 
 SDL_LIBS=-lSDL -lSDL_gfx -lSDL_ttf -lSDL_mixer
 OBJS=game.o \
@@ -13,6 +13,7 @@ OBJS=game.o \
 
 all: clean $(TARGET)
 	-cp -rf $(TARGET) ..
+	-cp -rf font ..
 
 .c.o:
 	$(CC) $(CFLAGS) -c $<

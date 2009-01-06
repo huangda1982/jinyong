@@ -122,13 +122,11 @@ void DrawRectangle(int x, int y, int w, int h, uint8 color, uint8 alpha)
 //画带边框矩形(x坐标, y坐标, 宽, 高, 内部颜色, 边框颜色, 透明度)
 void DrawFrameRectangle(int x, int y, int w, int h, uint8 frmColor, uint8 insColor, uint8 alpha)
 {
-	//SDL_LockSurface(g_screenSurface);
 	sint16 vx[RECTANGLE_N] = {x + RECTANGLE_D, x + w - RECTANGLE_D, x + w, x + w, x + w - RECTANGLE_D, x + RECTANGLE_D, x, x};
 	sint16 vy[RECTANGLE_N] = {y, y, y + RECTANGLE_D, y + h - RECTANGLE_D, y + h, y + h, y + h - RECTANGLE_D, y + RECTANGLE_D};
 
 	filledPolygonColor(g_screenSurface, vx, vy, RECTANGLE_N, COLORA(insColor, alpha));
 	polygonColor(g_screenSurface, vx, vy, RECTANGLE_N, COLOR(frmColor));
-	//SDL_UnlockSurface(g_screenSurface);
 }
 
 static void PutPixel(SDL_Surface* surface, int x, int y, uint32 pixel)
@@ -154,36 +152,33 @@ void DrawPic(SDL_Surface* surface, int index, int x, int y, uint32* idxBuffer, b
 		picBuffer += sizeof(T_PicRect);
 		nextPicBuffer = picBuffer + *(idxBuffer + index);
 
-		picRect->dx = 0;
-		picRect->dy = 0;
-
 		int l = x - picRect->dx;
 		int t = y - picRect->dy;
 		int r = x + picRect->w - picRect->dx;
 		int b = y + picRect->h - picRect->dy;
 		if (surface
 			&& ((l < surface->w && t < surface->h) || (r >= 0 && b >= 0))) {
-			SDL_LockSurface(surface);
-			int px = 0;
-			int py = 0;
+			uint8 px = 0;
+			uint8 py = 0;
 			for (py = 0; py < picRect->h; py++) {
 				if (picBuffer < nextPicBuffer) {
-					byte* nextLine = picBuffer + *picBuffer + 1;
+					byte* nextLine = picBuffer + (uint8)*picBuffer + 1;
 					picBuffer++;
 
 					px = 0;
 					while (picBuffer < nextLine) {
 						px += *(picBuffer++);
 
-						byte* next = picBuffer + *picBuffer + 1;
+						byte* next = picBuffer + (uint8)*picBuffer + 1;
 						picBuffer++;
 						for (; picBuffer < next; picBuffer++) {
 							PutPixel(surface, l + px++, t + py, GetPalettePixel(surface->format, *picBuffer, 255, highlight));
 						}
 					}
+
+					picBuffer = nextLine;
 				}
 			}
-			SDL_UnlockSurface(surface);
 		}
 	}
 }
