@@ -55,6 +55,9 @@ void DrawScenceWithoutUpdate()
 	int cx;
 	int cy;
 
+	//清屏
+	DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0xff);
+
 	//如在事件中, 则以g_ex, g_ey为中心, 否则以主角坐标为中心
 	if (g_curEvent != EVENT_NOTHING) {
 		cx = g_ex;

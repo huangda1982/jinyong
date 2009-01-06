@@ -107,15 +107,7 @@ int main()
 
 	SDL_EnableKeyRepeat(KEY_REPEAT, KEY_REPEAT);
 
-	//Start();
-	ReadFiles();
-	while(1) {
-	int i;
-	scanf("%d", &i);
-	DrawRectangle(0, 0, 640, 480, 0, 0xff);
-	DrawPicOnScreen(i, SCREEN_CENTER_X, SCREEN_CENTER_Y, g_mapIdxBuff, g_mapPicBuff, 0);
-	UpdateScreen();
-	}
+	Start();
 
 	Quit();
 
