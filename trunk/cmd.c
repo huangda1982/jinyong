@@ -17,7 +17,204 @@
 * Functions                                                                    *
 *******************************************************************************/
 
-#if 0
+//Event.
+//事件系统
+const void *CMD_FUNCS(sint16**) = {
+	CmdRedraw();
+};
+
+void CallEvent(int event)
+	var
+	e: array of smallint;
+	int   i = 0;
+	int  idx = 0;
+	int  grp = 0;
+	int  offset = 0;
+	int  length = 0;
+	int p = 0;
+check: boolean;
+{
+	byte* cmdBuffer = NULL;
+
+	//g_curEvent=num;
+	g_ex = g_sx;
+	g_ey = g_sy;
+	g_sStep = 0;
+	
+	if (event) {
+		cmdBuffer = g_cmdGrpBuff + *(g_cmdIdxBuff + event - 1);
+	} else {
+		cmdBuffer = g_cmdGrpBuff;
+	}
+
+	sint16* cmd = cmdBuffer;
+	while (*cmd >= 0 && *cmd <= sizeof(CMD_FUNCS) / sizeof (void *(sint16**))) {
+		(*CMD_FUNCS[*cmd])(cmd);
+	}
+
+	event.key.keysym.sym = 0;
+	event.button.button = 0;
+
+	InitialScence;
+	Redraw();
+}
+
+//事件指令含义请参阅其他相关文献
+void CmdRedraw(sint16** cmd)
+{
+	if (cmd) (*cmd)++;
+	Redraw();
+}
+
+void CmdTalk(sint16** cmd)
+{
+	(*cmd)++;
+	int talkIndex = *((*cmd)++);
+	int faceIndex = *((*cmd)++);
+	int disMode = *((*cmd)++);
+
+	switch (dismode) {
+		case 0:
+			headx = 40;
+			heady = 80;
+			diagx = 100;
+			diagy = 30;
+			break;
+		case 1:
+			headx = 546;
+			heady = SCREEN_CENTER_Y * 2 - 80;
+			diagx = 10;
+			diagy = SCREEN_CENTER_Y * 2 - 130;
+			break;
+		case 2:
+			headx = -1;
+			heady = -1;
+			diagx = 100;
+			diagy = 30;
+			break;
+		case 5:
+			headx = 40;
+			heady = SCREEN_CENTER_Y * 2 - 80;
+			diagx = 100;
+			diagy = SCREEN_CENTER_Y * 2 - 130;
+			break;
+		case 4:
+			headx = 546;
+			heady = 80;
+			diagx = 10;
+			diagy = 30;
+			break;
+		case 3:
+			headx = -1;
+			heady = -1;
+			diagx = 100;
+			diagy = SCREEN_CENTER_Y * 2 - 130;
+			break;
+	}
+	idx = fileopen("talk.idx", fmopenread);
+	grp = fileopen("talk.grp", fmopenread);
+	if (talknum == 0)
+	{
+		offset = 0;
+		fileread(idx, len, 4);
+	}
+	else
+	{
+		fileseek(idx, (talknum - 1) * 4, 0);
+		fileread(idx, offset, 4);
+		fileread(idx, len, 4);
+	}
+	len = (len - offset);
+	setlength(talkarray, len + 1);
+	fileseek(grp, offset, 0);
+	fileread(grp, talkarray[0], len);
+	fileclose(idx);
+	fileclose(grp);
+	DrawRectangle(0, diagy - 10, 640, 120, 0, 40);
+	if (headx > 0) DrawFacePic(headnum, headx, heady);
+	//if (headnum <= MAX_HEAD_NUM)
+	//{
+	//name = Big5toUTF8(@rrole[headnum].Name);
+	//drawshadowtext(@name[1], headx + 20 - length(name) * 10, heady + 5, COLOR(0xff), COLOR(0x0));
+	//}
+	for i = 0 to len - 1 do
+	{
+		talkarray[i] = talkarray[i] xor 0xFF;
+		if ((talkarray[i] == 0x2A))
+			talkarray[i] = 0;
+	}
+	p = 0;
+	l = 0;
+	for i = 0 to len do
+	{
+		if (talkarray[i] == 0)
+		{
+			drawbig5shadowtext(@talkarray[p], diagx, diagy + l * 22, COLOR(0xFF), COLOR(0x0));
+			p = i + 1;
+			l = l + 1;
+			if ((l >= 4) && (i < len))
+			{
+				sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
+				WaitKey;
+				Redraw;
+				DrawRectangle(0, diagy - 10, 640, 120, 0, 40);
+				if (headx > 0) DrawFacePic(headnum, headx, heady);
+				l = 0;
+			}
+		}
+	}
+	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
+	WaitKey;
+	redraw;
+
+	*/
+}
+
+//得到物品可显示数量, 数量为负显示失去物品
+void CmdItemGetLost(sint16** cmd)
+{
+	(*cmd)++;
+	int item = *((*cmd)++);
+	int num = *((*cmd)++);
+
+	int i;
+	for (i = 0; g_roleData.itmes[i].index >= 0 && i < MAX_ITEM_NUM; i++) {
+		if (g_roleData.itmes[i].index == item) {
+			g_roleData.items[i].num += num;
+			if (g_roleData.items[i].num < 0 && num >= 0) g_roleData.items[i].num = 32767;
+			if (g_roleData.items[i].num < 0 && num < 0) g_roleData.items[i].num = 0;
+			break;
+		}
+	}
+
+	if (g_roleData.items[i].number < 0)
+	{
+		g_roleData.items[i].Number = inum;
+		g_roleData.items[i].num =.num;
+	}
+
+	ReArrangeItem;
+
+	x = SCREEN_CENTER_X;
+	if (g_inGame == 2) x = 190;
+
+	DrawFrameRectangle(x - 75, 98, 145, 76, 0, COLOR(255), 30);
+	if .num >= 0)
+		word = " 得到物品"
+	else
+		word = " 失去物品";
+	drawshadowtext(@word[1], x - 90, 100, COLOR(0x23), COLOR(0x21));
+	drawbig5shadowtext(@RItem[inum].Name, x - 90, 125, COLOR(0x7), COLOR(0x5));
+	word = " 數量";
+	drawshadowtext(@word[1], x - 90, 150, COLOR(0x66), COLOR(0x64));
+	word = format(" %5d", .num]);
+	drawengshadowtext(@word[1], x - 5, 150, COLOR(0x66), COLOR(0x64));
+	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
+	WaitKey;
+	redraw;
+	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
+
+}
 //改变事件, 如在当前场景需重置场景
 //在需改变贴图较多时效率较低
 void instruct_3(list: array of integer)()
@@ -26,6 +223,8 @@ void instruct_3(list: array of integer)()
 	int  i1 = 0;
 	int i2 = 0;
 {
+	if (cmd) *((*cmd)++);
+
 	if (list[0] == -2) list[0] = g_curScence;
 	if (list[1] == -2) list[1] = g_curEvent;
 	if (list[11] == -2) list[11] = g_scenceEventData[list[0], list[1], 9];
@@ -167,7 +366,7 @@ int menu = 0;
 //住宿
 void CmdSleep(sint16** cmd) //12
 {
-	if (cmd) (*cmd)++;
+	if (cmd) *((*cmd)++);
 
 	int i;
 	for (i = 0; i < MAX_TEAM_ROLE; i++) {
@@ -183,7 +382,7 @@ void CmdSleep(sint16** cmd) //12
 //亮屏
 void CmdScreenFadeIn(sint16** cmd) //13
 {
-	if (cmd) (*cmd)++;
+	if (cmd) *((*cmd)++);
 
 	int i;
 	for (i = 0xff; i > 0; i -= 0x0f) {
@@ -199,7 +398,7 @@ void CmdScreenFadeIn(sint16** cmd) //13
 //黑屏
 void CmdScreenFadeOut(sint16** cmd) //14
 {
-	if (cmd) (*cmd)++;
+	if (cmd) *((*cmd)++);
 
 	int i;
 	for (i = 0; i < 0xff; i += 0x0f) {

@@ -43,6 +43,7 @@ void* LoadFile(char* filename, void* buffer, size_t size);
 T_Position GetMapScenceXYPos(int mx, int my, int cx, int cy);
 
 void RedrawWithoutUpdate();
+void Redraw();
 
 int WaitKey();
 int PollKey();
