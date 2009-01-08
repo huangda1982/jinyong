@@ -68,8 +68,8 @@ void DrawMapWithoutUpdate()
 	}
 
 	bool buildingFlag[MAP_WIDTH][MAP_HEIGHT] = {{FALSE}};
-		for (mx = 0; mx < MAP_WIDTH; mx++) {
 	for (my = 0; my < MAP_HEIGHT; my++) {
+		for (mx = 0; mx < MAP_WIDTH; mx++) {
 			//s.weyl说游戏中xy是反的，开始没在意，现在终于信了。
 			int by = g_buildingX[mx][my];
 			int bx = g_buildingY[mx][my];
@@ -97,79 +97,6 @@ void DrawMapWithoutUpdate()
 			}
 		}
 	}
-#if 0
-	int   i1 = 0;
-	int  i2 = 0;
-	int  i = 0;
-	int  sum = 0;
-	int  x = 0;
-	int y = 0;
-	sint16 temp[MAP_WIDTH][MAP_HEIGHT];
-	T_Position pos;
-
-	//由上到下绘制, 先绘制中心点靠上的建筑
-	for (sum = -29; sum < 41; sum++) {
-		for (i = -15; i < 16; i++) {
-			i1 = g_mx + i + (sum / 2);
-			i2 = g_my - i + (sum - sum / 2);
-			pos = GetMapScenceXYPos(i1, i2, g_mx, g_my);
-			if ((i1 >= 0) && (i1 < 480) && (i2 >= 0) && (i2 < 480))
-			{
-				if ((sum >= -27) && (sum <= 28) && (i >= -9) && (i <= 9))
-				{
-					DrawMapPic(g_map[i1][i2] / 2, pos.x, pos.y);
-					if (g_ground[i1][i2] > 0)
-						DrawMapPic(g_ground[i1][i2] / 2, pos.x, pos.y);
-				}
-				temp[i1][i2] = g_building[i1][i2];
-			} else {
-				DrawMapPic(0, pos.x, pos.y);
-			}
-		}
-	}
-
-#if 0
-	for sum = -29 to 40 do
-		for i = -15 to 15 do
-		{
-			i1 = g_mx + i + (sum / 2);
-			i2 = g_my - i + (sum - sum / 2);
-			if ((i1 >= 0) && (i1 < 480) && (i2 >= 0) && (i2 < 480))
-			{
-				x = g_buildingY[i1, i2];
-				y = g_buildingX[i1, i2];
-				Pos = GetMapScenceXYPos(x, y, g_mx, g_my);
-				if ((g_buildingX[i1, i2] > 0 && g_buildingX[i1 - 1, i2 - 1] <> g_buildingX[i1, i2] && g_buildingX[i1 + 1, i2 + 1] <> g_buildingX[i1, i2]) || (g_buildingY[i1 - 1, i2 - 1] <> g_buildingY[i1, i2] && g_buildingY[i1 + 1, i2 + 1] <> g_buildingY[i1, i2])) then
-				{
-
-					if (temp[x, y] > 0)
-					{
-						DrawMapPic(g_building[x, y] / 2, pos.x, pos.y);
-						temp[x, y] = 0;
-					}
-				}
-
-				//如在水面上则绘制船的贴图
-				if ((i1 == g_mx) && (i2 == g_my))
-					if ((g_ship == 0))
-						if (g_mStep)
-							DrawMapPic(WALK_PIC_OFFSET + g_mFace * WALK_PIC_NUM + g_mStep, SCREEN_CENTER_X, SCREEN_CENTER_Y)
-						else
-							DrawMapPic(2528 + g_mFace * 6 + g_mStep, SCREEN_CENTER_X, SCREEN_CENTER_Y)
-					else
-						DrawMapPic(3714 + g_mFace * 4 + (g_mStep + 1) / 2, SCREEN_CENTER_X, SCREEN_CENTER_Y);
-				if ((temp[i1, i2] > 0) && (g_buildingX[i1, i2] == i2))
-				{
-					DrawMapPic(g_building[i1, i2] / 2, pos.x, pos.y);
-					temp[i1, i2] = 0;
-				}
-			}
-
-		}
-#endif
-
-	//SDL_UpdateRect(g_screenSurface, 0,0,g_screenSurface.w,g_screenSurface.h);
-#endif
 }
 
 //显示主地图场景于屏幕

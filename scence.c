@@ -110,7 +110,6 @@ static void DrawScence()
 
 static void ShowScenceName(int scence)
 {
-	//UpdateScence();
 	//显示场景名
 	DrawFrameText(Big5ToUtf8(g_roleData.scences[scence].name), TEXT_NORMAL_COLOR, TEXT_COLOR);
 	UpdateScreen();
