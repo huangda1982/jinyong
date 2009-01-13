@@ -24,11 +24,6 @@
 uint32* g_scenceIdxBuff = NULL;
 byte* g_scencePicBuff = NULL;
 
-//场景内坐标, 场景中心点, 方向, 步数
-#define g_sx	(g_roleData.common.sx)
-#define g_sy	(g_roleData.common.sy)
-int g_ex = 0;
-int g_ey = 0;
 int g_sFace = 0;
 int g_sStep = 0;
 int g_curScence = 0;

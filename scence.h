@@ -21,6 +21,9 @@
 * Global Variables                                                             *
 *******************************************************************************/
 
+#define g_sx	(g_roleData.common.sx)
+#define g_sy	(g_roleData.common.sy)
+
 extern sint16 g_scenceData[SCENCE_NUM][SCENCE_LAYER_NUM][SCENCE_WIDTH][SCENCE_HEIGHT];
 #define g_curScenceData		(g_scenceData[g_curScence])
 

@@ -415,7 +415,7 @@ char* Utf8ToBig5(char* utf8)
 		iconv(g_utf8ToBig5, &in, &utf8Len, &out, &big5Len);
 	}
 
-	return utf8;
+	return big5;
 }
 
 //big5转为UTF8
