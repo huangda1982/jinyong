@@ -38,15 +38,24 @@ void CmdRedraw(sint16** cmd)	//0
 	Redraw();
 }
 
-#if 0
 void CmdTalk(sint16** cmd)	//1
 {
+	int talkIndex = 1;
+	int faceIndex = 1;
+	int dispMode = 1;
+	while(1) {
+	/*
 	(*cmd)++;
 	int talkIndex = *((*cmd)++);
 	int faceIndex = *((*cmd)++);
-	int disMode = *((*cmd)++);
+	int dispMode = *((*cmd)++);
+	*/
 
-	switch (dismode) {
+	int headx;
+	int heady;
+	int diagx;
+	int diagy;
+	switch (dispMode) {
 		case 0:
 			headx = 40;
 			heady = 80;
@@ -84,38 +93,58 @@ void CmdTalk(sint16** cmd)	//1
 			diagy = SCREEN_CENTER_Y * 2 - 130;
 			break;
 	}
-	idx = fileopen("talk.idx", fmopenread);
-	grp = fileopen("talk.grp", fmopenread);
-	if (talknum == 0)
-	{
-		offset = 0;
-		fileread(idx, len, 4);
+
+	byte* talk = talkIndex ? g_talkBuff + *(g_talkIdxBuff + talkIndex - 1) : g_talkBuff;
+	byte* nextTalk = g_talkBuff + *(g_talkIdxBuff + talkIndex);
+	char talkStr[TEXT_BIG5_LEN] = {'\0'};
+	byte* p = (byte*)talkStr;
+	bool qm = FALSE;
+
+	for (; talk < nextTalk && p < (byte*)talkStr + TEXT_BIG5_LEN; talk++) {
+		if (*talk != (byte)~'\x2a') {
+			*p = ~*talk;
+
+			if (*(p - 1) == (byte)'\xa1') {
+				printf("%hhx\n", *p);
+				switch (*p) {
+					case (byte)'\x44':
+						*p = (byte)'\x43';		//点替换成句号
+						break;
+					case (byte)'\xa8':
+						if (!qm) {
+							*p = (byte)'\xa7';	//右双引号替换成左双引号
+						}
+						qm = !qm;
+						break;
+					default:
+						break;
+				}
+			}
+
+			p++;
+		}
 	}
-	else
-	{
-		fileseek(idx, (talknum - 1) * 4, 0);
-		fileread(idx, offset, 4);
-		fileread(idx, len, 4);
-	}
-	len = (len - offset);
-	setlength(talkarray, len + 1);
-	fileseek(grp, offset, 0);
-	fileread(grp, talkarray[0], len);
-	fileclose(idx);
-	fileclose(grp);
+	*(p - 1) = '\0';
+
+	Redraw();
 	DrawRectangle(0, diagy - 10, 640, 120, 0, 40);
-	if (headx > 0) DrawFacePic(headnum, headx, heady);
-	//if (headnum <= MAX_HEAD_NUM)
-	//{
-	//name = Big5toUTF8(@rrole[headnum].Name);
-	//drawshadowtext(@name[1], headx + 20 - length(name) * 10, heady + 5, COLOR(0xff), COLOR(0x0));
-	//}
-	for i = 0 to len - 1 do
-	{
-		talkarray[i] = talkarray[i] xor 0xFF;
-		if ((talkarray[i] == 0x2A))
-			talkarray[i] = 0;
+	if (headx > 0) {
+		DrawFacePic(faceIndex, headx, heady);
 	}
+	DrawBig5Text(talkStr, diagx, diagy, 0xff);
+	UpdateScreen();
+	WaitKey();
+	talkIndex++;
+	}
+	/*
+
+	p = talk;
+	int x = diagx;
+	int y = diagy;
+	while(*p) {
+		T_Position pos = DrawBig5Text(p
+	}
+
 	p = 0;
 	l = 0;
 	for i = 0 to len do
@@ -139,9 +168,9 @@ void CmdTalk(sint16** cmd)	//1
 	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
 	WaitKey;
 	redraw;
-
 	*/
 }
+#if 0
 
 //得到物品可显示数量, 数量为负显示失去物品
 void CmdItemGetLost(sint16** cmd)
@@ -707,7 +736,7 @@ word: widestring;
 
 //学到武功, 如果已有武功则升级, 如果已满10个不会洗武功
 
-void instruct_33(rnum, magicnum, int dismode = 0)()
+void instruct_33(rnum, magicnum, int dispMode = 0)()
 	var
 	int i = 0;
 word: widestring;
@@ -723,7 +752,7 @@ word: widestring;
 		}
 	}
 	//if (i == 10) rrole[rnum].data[i+63] = magicnum;
-	if (dismode == 0)
+	if (dispMode == 0)
 	{
 		DrawFrameRectangle(SCREEN_CENTER_X - 75, 98, 145, 76, 0, COLOR(255), 30);
 		word = " 學會";

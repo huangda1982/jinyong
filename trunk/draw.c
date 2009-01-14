@@ -394,7 +394,7 @@ T_Position DrawBig5Text(char* big5, int x, int y, uint8 color)
 	T_Position pos = {.x = 0, .y = 0};
 
 	if (big5) {
-		pos = DrawText(Utf8ToBig5(big5), x, y, color);
+		pos = DrawText(Big5ToUtf8(big5), x, y, color);
 	}
 
 	return pos;

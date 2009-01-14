@@ -16,7 +16,7 @@ typedef int				bool;
 
 typedef char			sint8;
 typedef unsigned char	uint8;
-typedef sint8			byte;
+typedef uint8			byte;
 
 typedef short 			sint16;
 typedef unsigned short	uint16;
