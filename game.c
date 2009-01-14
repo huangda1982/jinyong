@@ -436,29 +436,6 @@ void ReadFiles()
 	}
 	g_mapPicBuff = LoadFile("mmap.grp", NULL, 0);
 
-	/*
-	   if (g_scenceIdxBuff) {
-	   free(g_scenceIdxBuff);
-	   g_scenceIdxBuff = NULL;
-	   }
-	   LoadFile("sdx", g_scenceIdxBuff, 0);
-	   if (g_scencePicBuff) {
-	   free(g_scencePicBuff);
-	   g_scencePicBuff = NULL;
-	   }
-	   LoadFile("smp", g_scencePicBuff, 0);
-
-	   if (g_bfIdxBuff) {
-	   free(g_bfIdxBuff);
-	   g_bfIdxBuff = NULL;
-	   }
-	   LoadFile("wdx", g_bfIdxBuff, 0);
-	   if (g_bfPicBuff) {
-	   free(g_bfPicBuff);
-	   g_bfPicBuff = NULL;
-	   }
-	   LoadFile("wmp", g_bfPicBuff, 0);
-	   */
 	if (g_cmdIdxBuff) {
 		free(g_cmdIdxBuff);
 		g_cmdIdxBuff = NULL;
@@ -496,12 +473,12 @@ void ReadFiles()
 		free(g_talkIdxBuff);
 		g_talkIdxBuff = NULL;
 	}
-	g_talkBuff = LoadFile("talk.idx", NULL, 0);
+	g_talkIdxBuff = LoadFile("talk.idx", NULL, 0);
 	if (g_talkBuff) {
 		free(g_talkBuff);
 		g_talkBuff = NULL;
 	}
-	g_talkBuff = LoadFile("hdgrp.grp", NULL, 0);
+	g_talkBuff = LoadFile("talk.grp", NULL, 0);
 
 	LoadFile("earth.002", g_map, sizeof(g_map));
 

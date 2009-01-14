@@ -170,6 +170,9 @@ void InMap()
 
 	CmdScreenFadeIn(NULL);
 
+	CmdTalk(NULL);
+	WaitKey();
+
 	//PlayMp3(16, -1);
 
 	//事件轮询(并非等待)
