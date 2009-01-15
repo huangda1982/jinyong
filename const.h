@@ -74,6 +74,71 @@
 #define FRAME_TEXT_ALPHA		0x4f
 #define FRAME_TEXT_PADDING		5
 
+#define TALK_ALPHA			FRAME_TEXT_ALPHA
+#define TALK_PADDING		20
+
+#define TALK_1_X			0
+#define TALK_1_Y			20
+#define TALK_1_WIDTH		SCREEN_WIDTH
+#define TALK_1_HEIGHT		120
+#define TALK_1_FACE_X		(TALK_1_X + TALK_PADDING)
+#define TALK_1_FACE_Y		(TALK_1_Y + (TALK_1_HEIGHT - FACE_PIC_H) / 2 + FACE_PIC_H)
+#define TALK_1_TEXT_X		(TALK_1_FACE_X + FACE_PIC_W + TALK_PADDING)
+#define TALK_1_TEXT_Y		(TALK_1_Y + TALK_PADDING)
+#define TALK_1_TEXT_WIDTH	(TALK_1_WIDTH - TALK_1_TEXT_X - TALK_PADDING)
+#define TALK_1_TEXT_HEIGHT	(TALK_1_HEIGHT - TALK_PADDING * 2)
+
+#define TALK_2_X			0
+#define TALK_2_Y			(SCREEN_HEIGHT - 20 - TALK_2_HEIGHT)
+#define TALK_2_WIDTH		SCREEN_WIDTH
+#define TALK_2_HEIGHT		120
+#define TALK_2_FACE_X		(TALK_2_WIDTH - TALK_PADDING - FACE_PIC_W)
+#define TALK_2_FACE_Y		(TALK_2_Y + (TALK_1_HEIGHT - FACE_PIC_H) / 2 + FACE_PIC_H)
+#define TALK_2_TEXT_X		(TALK_2_X + TALK_PADDING)
+#define TALK_2_TEXT_Y		(TALK_2_Y + TALK_PADDING)
+#define TALK_2_TEXT_WIDTH	(TALK_2_FACE_X - TALK_PADDING * 2)
+#define TALK_2_TEXT_HEIGHT	(TALK_2_HEIGHT - TALK_PADDING * 2)
+
+#define TALK_3_X			0
+#define TALK_3_Y			20
+#define TALK_3_WIDTH		SCREEN_WIDTH
+#define TALK_3_HEIGHT		120
+#define TALK_3_TEXT_X		TALK_PADDING
+#define TALK_3_TEXT_Y		(TALK_3_Y + TALK_PADDING)
+#define TALK_3_TEXT_WIDTH	(TALK_3_WIDTH - TALK_PADDING * 2)
+#define TALK_3_TEXT_HEIGHT	(TALK_3_HEIGHT - TALK_PADDING * 2)
+
+#define TALK_4_X			0
+#define TALK_4_Y			(SCREEN_HEIGHT - 20 - TALK_4_HEIGHT)
+#define TALK_4_WIDTH		SCREEN_WIDTH
+#define TALK_4_HEIGHT		120
+#define TALK_4_TEXT_X		(TALK_4_X + TALK_PADDING)
+#define TALK_4_TEXT_Y		(TALK_4_Y + TALK_PADDING)
+#define TALK_4_TEXT_WIDTH	(TALK_4_WIDTH - TALK_PADDING * 2)
+#define TALK_4_TEXT_HEIGHT	(TALK_4_HEIGHT - TALK_PADDING * 2)
+
+#define TALK_5_X			0
+#define TALK_5_Y			20
+#define TALK_5_WIDTH		SCREEN_WIDTH
+#define TALK_5_HEIGHT		120
+#define TALK_5_FACE_X		(TALK_5_WIDTH - TALK_PADDING - FACE_PIC_W)
+#define TALK_5_FACE_Y		(TALK_5_Y + (TALK_5_HEIGHT - FACE_PIC_H) / 2 + FACE_PIC_H)
+#define TALK_5_TEXT_X		(TALK_5_X + TALK_PADDING)
+#define TALK_5_TEXT_Y		(TALK_5_Y + TALK_PADDING)
+#define TALK_5_TEXT_WIDTH	(TALK_5_FACE_X - TALK_PADDING * 2)
+#define TALK_5_TEXT_HEIGHT	(TALK_5_HEIGHT - TALK_PADDING * 2)
+
+#define TALK_6_X			0
+#define TALK_6_Y			(SCREEN_HEIGHT - 20 - TALK_2_HEIGHT)
+#define TALK_6_WIDTH		SCREEN_WIDTH
+#define TALK_6_HEIGHT		120
+#define TALK_6_FACE_X		(TALK_6_X + TALK_PADDING)
+#define TALK_6_FACE_Y		(TALK_6_Y + (TALK_6_HEIGHT - FACE_PIC_H) / 2 + FACE_PIC_H)
+#define TALK_6_TEXT_X		(TALK_6_FACE_X + FACE_PIC_W + TALK_PADDING)
+#define TALK_6_TEXT_Y		(TALK_6_Y + TALK_PADDING)
+#define TALK_6_TEXT_WIDTH	(TALK_6_WIDTH - TALK_6_TEXT_X - TALK_PADDING)
+#define TALK_6_TEXT_HEIGHT	(TALK_6_HEIGHT - TALK_PADDING * 2)
+
 /*******************************************************************************
 * Input                                                                        *
 *******************************************************************************/

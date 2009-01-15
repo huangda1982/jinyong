@@ -435,3 +435,51 @@ char* Big5ToUtf8(char* big5)
 
 	return utf8;
 }
+
+void DrawTalk(char* str, int x, int y, int w, int h, int face, int fx, int fy, int tx, int ty, int tw, int th)
+{
+	byte character[3] = {'\0'};
+	int currentTx = tx;
+	int currentTy = ty;
+	SDL_Surface* text = NULL;
+
+	Redraw();
+	DrawRectangle(x, y, w, h, 0, TALK_ALPHA);
+	if (face > 0) {
+		DrawFacePic(face, fx, fy);
+	}
+
+	while (*str) {
+		if (*str < 0 && *(str + 1)) {
+			character[0] = *(str++);
+			character[1] = *str;
+		} else {
+			character[0] = *str;
+			character[1] = (byte)'\0';
+		}
+
+		if ((text = TTF_RenderUTF8_Blended(g_HanFont, Big5ToUtf8((char*)character), GetSDLColor(TEXT_COLOR)))) {
+			if (currentTx + text->w > tx + tw) {
+				currentTx = tx;
+				if ((currentTy += text->h) > ty + th) {
+					UpdateScreen();
+					WaitKey();
+					currentTx = tx;
+					currentTy = ty;
+					Redraw();
+					DrawRectangle(x, y, w, h, 0, TALK_ALPHA);
+					if (face > 0) {
+						DrawFacePic(face, fx, fy);
+					}
+				}
+			}
+
+			SDL_BlitSurface(text, NULL, g_screenSurface, &(SDL_Rect){currentTx, currentTy, text->w, text->h});
+			SDL_FreeSurface(text);
+			currentTx += text->w;
+		}
+		str++;
+	}
+	UpdateScreen();
+	WaitKey();
+}

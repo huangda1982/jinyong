@@ -40,9 +40,9 @@ void CmdRedraw(sint16** cmd)	//0
 
 void CmdTalk(sint16** cmd)	//1
 {
-	int talkIndex = 1;
+	int talkIndex = 139;
 	int faceIndex = 1;
-	int dispMode = 1;
+	int dispMode = 0;
 	while(1) {
 	/*
 	(*cmd)++;
@@ -51,46 +51,89 @@ void CmdTalk(sint16** cmd)	//1
 	int dispMode = *((*cmd)++);
 	*/
 
-	int headx;
-	int heady;
-	int diagx;
-	int diagy;
+	int talkX;
+	int talkY;
+	int talkWidth;
+	int talkHeight;
+	int faceX;
+	int faceY;
+	int textX;
+	int textY;
+	int textWidth;
+	int textHeight;
+	printf("dispMode = %d\n", dispMode);
 	switch (dispMode) {
 		case 0:
-			headx = 40;
-			heady = 80;
-			diagx = 100;
-			diagy = 30;
+			talkX = TALK_1_X;
+			talkY = TALK_1_Y;
+			talkWidth = TALK_1_WIDTH;
+			talkHeight = TALK_1_HEIGHT;
+			faceX = TALK_1_FACE_X;
+			faceY = TALK_1_FACE_Y;
+			textX = TALK_1_TEXT_X;
+			textY = TALK_1_TEXT_Y;
+			textWidth = TALK_1_TEXT_WIDTH;
+			textHeight = TALK_1_TEXT_HEIGHT;
 			break;
 		case 1:
-			headx = 546;
-			heady = SCREEN_CENTER_Y * 2 - 80;
-			diagx = 10;
-			diagy = SCREEN_CENTER_Y * 2 - 130;
+			talkX = TALK_2_X;
+			talkY = TALK_2_Y;
+			talkWidth = TALK_2_WIDTH;
+			talkHeight = TALK_2_HEIGHT;
+			faceX = TALK_2_FACE_X;
+			faceY = TALK_2_FACE_Y;
+			textX = TALK_2_TEXT_X;
+			textY = TALK_2_TEXT_Y;
+			textWidth = TALK_2_TEXT_WIDTH;
+			textHeight = TALK_2_TEXT_HEIGHT;
 			break;
 		case 2:
-			headx = -1;
-			heady = -1;
-			diagx = 100;
-			diagy = 30;
-			break;
-		case 5:
-			headx = 40;
-			heady = SCREEN_CENTER_Y * 2 - 80;
-			diagx = 100;
-			diagy = SCREEN_CENTER_Y * 2 - 130;
-			break;
-		case 4:
-			headx = 546;
-			heady = 80;
-			diagx = 10;
-			diagy = 30;
+			talkX = TALK_3_X;
+			talkY = TALK_3_Y;
+			talkWidth = TALK_3_WIDTH;
+			talkHeight = TALK_3_HEIGHT;
+			faceX = 0;
+			faceY = 0;
+			textX = TALK_3_TEXT_X;
+			textY = TALK_3_TEXT_Y;
+			textWidth = TALK_3_TEXT_WIDTH;
+			textHeight = TALK_3_TEXT_HEIGHT;
 			break;
 		case 3:
-			headx = -1;
-			heady = -1;
-			diagx = 100;
-			diagy = SCREEN_CENTER_Y * 2 - 130;
+			talkX = TALK_4_X;
+			talkY = TALK_4_Y;
+			talkWidth = TALK_4_WIDTH;
+			talkHeight = TALK_4_HEIGHT;
+			faceX = 0;
+			faceY = 0;
+			textX = TALK_4_TEXT_X;
+			textY = TALK_4_TEXT_Y;
+			textWidth = TALK_4_TEXT_WIDTH;
+			textHeight = TALK_4_TEXT_HEIGHT;
+			break;
+		case 4:
+			talkX = TALK_5_X;
+			talkY = TALK_5_Y;
+			talkWidth = TALK_5_WIDTH;
+			talkHeight = TALK_5_HEIGHT;
+			faceX = TALK_5_FACE_X;
+			faceY = TALK_5_FACE_Y;
+			textX = TALK_5_TEXT_X;
+			textY = TALK_5_TEXT_Y;
+			textWidth = TALK_5_TEXT_WIDTH;
+			textHeight = TALK_5_TEXT_HEIGHT;
+			break;
+		case 5:
+			talkX = TALK_6_X;
+			talkY = TALK_6_Y;
+			talkWidth = TALK_6_WIDTH;
+			talkHeight = TALK_6_HEIGHT;
+			faceX = TALK_6_FACE_X;
+			faceY = TALK_6_FACE_Y;
+			textX = TALK_6_TEXT_X;
+			textY = TALK_6_TEXT_Y;
+			textWidth = TALK_6_TEXT_WIDTH;
+			textHeight = TALK_6_TEXT_HEIGHT;
 			break;
 	}
 
@@ -105,14 +148,20 @@ void CmdTalk(sint16** cmd)	//1
 			*p = ~*talk;
 
 			if (*(p - 1) == (byte)'\xa1') {
-				printf("%hhx\n", *p);
 				switch (*p) {
-					case (byte)'\x44':
-						*p = (byte)'\x43';		//点替换成句号
+					case (byte)'\x44':			//点替换成句号或者省略号
+						if (*(p - 3) == (byte)'\xa1' && *(p - 2) == (byte)'\x43') {
+							*(p - 2) = (byte)'\x4b';
+							*p = (byte)'\x4b';
+						} else if (*(p - 3) == (byte)'\xa1' && *(p - 2) == (byte)'\x4b') {
+							p -= 2;
+						} else {
+							*p = (byte)'\x43';
+						}
 						break;
-					case (byte)'\xa8':
+					case (byte)'\xa8':			//右双引号替换成左双引号
 						if (!qm) {
-							*p = (byte)'\xa7';	//右双引号替换成左双引号
+							*p = (byte)'\xa7';
 						}
 						qm = !qm;
 						break;
@@ -126,15 +175,10 @@ void CmdTalk(sint16** cmd)	//1
 	}
 	*(p - 1) = '\0';
 
-	Redraw();
-	DrawRectangle(0, diagy - 10, 640, 120, 0, 40);
-	if (headx > 0) {
-		DrawFacePic(faceIndex, headx, heady);
-	}
-	DrawBig5Text(talkStr, diagx, diagy, 0xff);
-	UpdateScreen();
-	WaitKey();
+	DrawTalk(talkStr, talkX, talkY, talkWidth, talkHeight, faceIndex, faceX, faceY, textX, textY, textWidth, textHeight);
 	talkIndex++;
+	dispMode++;
+	if (dispMode > 5) dispMode = 0;
 	}
 	/*
 
