@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -Wall -O3
+CFLAGS=-g
 
 TARGET=jy
 

@@ -40,28 +40,22 @@ void CmdRedraw(sint16** cmd)	//0
 
 void CmdTalk(sint16** cmd)	//1
 {
-	int talkIndex = 139;
-	int faceIndex = 1;
-	int dispMode = 0;
-	while(1) {
-	/*
 	(*cmd)++;
 	int talkIndex = *((*cmd)++);
 	int faceIndex = *((*cmd)++);
 	int dispMode = *((*cmd)++);
-	*/
 
-	int talkX;
-	int talkY;
-	int talkWidth;
-	int talkHeight;
-	int faceX;
-	int faceY;
-	int textX;
-	int textY;
-	int textWidth;
-	int textHeight;
-	printf("dispMode = %d\n", dispMode);
+	int talkX = 0;
+	int talkY = 0;
+	int talkWidth = 0;
+	int talkHeight = 0;
+	int faceX = 0;
+	int faceY = 0;
+	int textX = 0;
+	int textY = 0;
+	int textWidth = 0;
+	int textHeight = 0;
+
 	switch (dispMode) {
 		case 0:
 			talkX = TALK_1_X;
@@ -135,6 +129,8 @@ void CmdTalk(sint16** cmd)	//1
 			textWidth = TALK_6_TEXT_WIDTH;
 			textHeight = TALK_6_TEXT_HEIGHT;
 			break;
+		default:
+			break;
 	}
 
 	byte* talk = talkIndex ? g_talkBuff + *(g_talkIdxBuff + talkIndex - 1) : g_talkBuff;
@@ -176,143 +172,118 @@ void CmdTalk(sint16** cmd)	//1
 	*(p - 1) = '\0';
 
 	DrawTalk(talkStr, talkX, talkY, talkWidth, talkHeight, faceIndex, faceX, faceY, textX, textY, textWidth, textHeight);
-	talkIndex++;
-	dispMode++;
-	if (dispMode > 5) dispMode = 0;
-	}
-	/*
+}
 
-	p = talk;
-	int x = diagx;
-	int y = diagy;
-	while(*p) {
-		T_Position pos = DrawBig5Text(p
-	}
+void RearrangeItem()
+{
+	T_ItemList item[ITEM_NUM];
+	int itemNum = 0;
 
-	p = 0;
-	l = 0;
-	for i = 0 to len do
-	{
-		if (talkarray[i] == 0)
+	int i = 0;
+	for (i = 0; i < ITEM_NUM; i++) {
+		if (g_itemList[i].index >= 0 && g_itemList[i].num > 0)
 		{
-			drawbig5shadowtext(@talkarray[p], diagx, diagy + l * 22, COLOR(0xFF), COLOR(0x0));
-			p = i + 1;
-			l = l + 1;
-			if ((l >= 4) && (i < len))
-			{
-				sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-				WaitKey;
-				Redraw;
-				DrawRectangle(0, diagy - 10, 640, 120, 0, 40);
-				if (headx > 0) DrawFacePic(headnum, headx, heady);
-				l = 0;
-			}
+			item[i] = g_itemList[i];
 		}
 	}
-	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	WaitKey;
-	redraw;
-	*/
+	itemNum = i;
+
+	for (i = 0; i < ITEM_NUM; i++) {
+		if (i < itemNum)
+		{
+			g_itemList[i] = item[i];
+		} else {
+			g_itemList[i].index = -1;
+			g_itemList[i].num = 0;
+		}
+	}
 }
-#if 0
 
 //得到物品可显示数量, 数量为负显示失去物品
-void CmdItemGetLost(sint16** cmd)
+void CmdGetItem(sint16** cmd)	//2
 {
 	(*cmd)++;
 	int item = *((*cmd)++);
 	int num = *((*cmd)++);
 
+	bool bFount = FALSE;
+
 	int i;
-	for (i = 0; g_roleData.itmes[i].index >= 0 && i < MAX_ITEM_NUM; i++) {
-		if (g_roleData.itmes[i].index == item) {
-			g_roleData.items[i].num += num;
-			if (g_roleData.items[i].num < 0 && num >= 0) g_roleData.items[i].num = 32767;
-			if (g_roleData.items[i].num < 0 && num < 0) g_roleData.items[i].num = 0;
+	for (i = 0; g_itemList[i].index >= 0 && i < ITEM_NUM; i++) {
+		if (g_itemList[i].index == item) {
+			g_itemList[i].num += num;
+
+			if (g_itemList[i].num < 0) {
+				g_itemList[i].num = 0;
+			}
+
+			bFount = TRUE;
 			break;
 		}
 	}
 
-	if (g_roleData.items[i].number < 0)
-	{
-		g_roleData.items[i].Number = inum;
-		g_roleData.items[i].num =.num;
-	}
-
-	ReArrangeItem;
-
-	x = SCREEN_CENTER_X;
-	if (g_inGame == 2) x = 190;
-
-	DrawFrameRectangle(x - 75, 98, 145, 76, 0, COLOR(255), 30);
-	if .num >= 0)
-		word = " 得到物品"
-	else
-		word = " 失去物品";
-	drawshadowtext(@word[1], x - 90, 100, COLOR(0x23), COLOR(0x21));
-	drawbig5shadowtext(@RItem[inum].Name, x - 90, 125, COLOR(0x7), COLOR(0x5));
-	word = " 數量";
-	drawshadowtext(@word[1], x - 90, 150, COLOR(0x66), COLOR(0x64));
-	word = format(" %5d", .num]);
-	drawengshadowtext(@word[1], x - 5, 150, COLOR(0x66), COLOR(0x64));
-	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-	WaitKey;
-	redraw;
-	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
-
-}
-//改变事件, 如在当前场景需重置场景
-//在需改变贴图较多时效率较低
-void instruct_3(list: array of integer)()
-	var
-	int   i = 0;
-	int  i1 = 0;
-	int i2 = 0;
-{
-	if (cmd) *((*cmd)++);
-
-	if (list[0] == -2) list[0] = g_curScence;
-	if (list[1] == -2) list[1] = g_curEvent;
-	if (list[11] == -2) list[11] = g_scenceEventData[list[0], list[1], 9];
-	if (list[12] == -2) list[12] = g_scenceEventData[list[0], list[1], 10];
-	//这里应该是原本z文件的bug, 如果不处于当前场景, 在连坐标值一起修改时, 并不会同时
-	//对S数据进行修改. 而<苍龙逐日>中有几条语句无意中符合了这个bug而造成正确的结果
-	//if (list[0] == g_curScence)
-	g_scenceData[list[0], 3, g_scenceEventData[list[0], list[1], 10], g_scenceEventData[list[0], list[1], 9]] = -1;
-	for i = 0 to 10 do
-	{
-		if (list[2 + i] <> -2)
-		{
-			g_scenceEventData[list[0], list[1], i] = list[2 + i];
+	if (!bFount) {
+		if (i < ITEM_NUM) {
+			g_itemList[i].index = item;
+			g_itemList[i].num =num;
+		} else {
+			return;
 		}
 	}
-	//if (list[0] == g_curScence)
-	g_scenceData[list[0], 3, g_scenceEventData[list[0], list[1], 10], g_scenceEventData[list[0], list[1], 9]] = list[1];
-	//if (list[0] == g_curScence)
-	//UpdateScence(list[12], list[11]);
 
+	RearrangeItem();
+
+	int x = SCREEN_CENTER_X;
+	char str[TEXT_UTF8_LEN];
+	sprintf(str, "%s%d個%s", num > 0 ? "得到" : "失去", num, Big5ToUtf8(g_roleData.items[item].name));
+
+	DrawFrameText(str, TEXT_NORMAL_COLOR, TEXT_COLOR);
+	UpdateScreen();
+	WaitKey();
+	Redraw();
+}
+
+//改变事件，如在当前场景需重置场景。在需改变贴图较多时效率较低
+void CmdChageScence(sint16** cmd)	//3
+{
+	(*cmd)++;
+
+	int scence = *((*cmd)++);
+	if (scence == -2) scence = g_curScence;
+	int eventIndex = *((*cmd)++);
+	if (eventIndex == -2) eventIndex = g_curEvent;
+
+	T_Event* event = (T_Event*)*cmd;
+	*cmd = (sint16*)(event + 1);
+	if(event->x == -2) event->x = g_scenceEventData[scence][eventIndex].x;
+	if(event->y == -2) event->y = g_scenceEventData[scence][eventIndex].y;
+
+	g_scenceEventData[scence][eventIndex] = *event;
+
+	g_scenceData[scence][EmScenceLayerEvent][g_scenceEventData[scence][eventIndex].y][g_scenceEventData[scence][eventIndex].x] = eventIndex;
 }
 
 //是否使用了某剧情物品
-
-int function instruct_4(inum = 0;
-		int  jump1 = 0;
-		int jump2 = 0int ) = 0;
+void CmdIsUsingSpItem(sint16** cmd)
 {
-	if (inum == CurItem)
-		result = jump1
-	else
-		result = jump2;
+	(*cmd)++;
 
+	int item = *((*cmd)++);
+	int jump1 = *((*cmd)++);
+	int jump2 = *((*cmd)++);
+
+	(*cmd) += item == g_usingItem ? jump1 : jump2;
 }
 
+#if 0
 //询问是否战斗
-
-int function instruct_5(jump1 = 0;
-		int jump2 = 0int ) = 0;
-var
-int menu = 0;
+int CmdChalenge(sint16** cmd)
 {
+	(*cmd)++;
+
+	int jump1 = *((*cmd)++);
+	int jump2 = *((*cmd)++);
+
 	setlength(menustring, 3);
 	menustring[0] = " 取消";
 	menustring[1] = " 戰鬥";
@@ -510,7 +481,7 @@ var
 int i = 0;
 {
 	result = jump2;
-	for i = 0 to MAX_ITEM_NUM - 1 do
+	for i = 0 to ITEM_NUM - 1 do
 	{
 		if (RItemList[i].Number == inum)
 		{
@@ -743,7 +714,7 @@ var
 int i = 0;
 {
 	result = jump2;
-	for i = 0 to MAX_ITEM_NUM - 1 do
+	for i = 0 to ITEM_NUM - 1 do
 	{
 		if ((RItemList[i].Number == MONEY_ID) && (RItemList[i].Amount >= moneynum))
 		{
@@ -759,7 +730,7 @@ void instruct_32(inum, int amount = 0)()
 word: widestring;
 {
 	i = 0;
-	while (RItemList[i].Number >= 0) && (i < MAX_ITEM_NUM) do
+	while (RItemList[i].Number >= 0) && (i < ITEM_NUM) do
 	{
 		if ((RItemList[i].Number == inum))
 		{
@@ -963,7 +934,7 @@ var
 int i = 0;
 {
 	result = jump2;
-	for i = 0 to MAX_ITEM_NUM - 1 do
+	for i = 0 to ITEM_NUM - 1 do
 		if (RItemList[i].Number == inum)
 		{
 			result = jump1;
@@ -1512,7 +1483,7 @@ word: widestring;
 		{
 			e2 = e_getvalue(0, e1, e2);
 			x50[e3] = 0;
-			for i = 0 to MAX_ITEM_NUM - 1 do
+			for i = 0 to ITEM_NUM - 1 do
 				if (RItemList[i].Number == e2)
 				{
 					x50[e3] = RItemList[i].Amount;
@@ -1903,7 +1874,9 @@ sdlk_down: x50[e1] = 152;
 //Event.
 //事件系统
 void (*CMD_FUNCS[])(sint16**) = {
-	CmdRedraw
+	CmdRedraw,
+	CmdTalk,
+	CmdGetItem,
 };
 
 void CallEvent(int event)

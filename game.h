@@ -31,8 +31,13 @@
 extern bool g_fullScreen;
 
 extern T_RoleData g_roleData;
+#define g_hero (g_roleData.roles[0])
 
 extern EmInGame g_inGame;
+
+extern int g_curScence;
+extern int g_curEvent;
+extern int g_usingItem;
 
 /*******************************************************************************
 * Functions                                                                    *

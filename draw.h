@@ -61,6 +61,8 @@ T_Position DrawBig5ShadowText(char* big5, int x, int y, uint8 color);
 void DrawFrameText(char* str, uint8 txtColor, uint8 frmColor);
 T_Position DrawBig5Text(char* big5, int x, int y, uint8 color);
 
+void DrawTalk(char* str, int x, int y, int w, int h, int face, int fx, int fy, int tx, int ty, int tw, int th);
+
 char* Utf8ToBig5(char* utf8);
 char* Big5ToUtf8(char* big5);
 
