@@ -141,15 +141,18 @@ static bool GoIn(int mx, int my)
 	bool goIn = FALSE;
 
 	int scence = -1;
-	if ((scence = g_entrances[mx][my] >= 0)) {
-		if ((g_roleData.scences[scence].enCondition == 0)) {
-			goIn = TRUE;
-		} else if ((g_roleData.scences[scence].enCondition == 2)) { //是否有人轻功超过70
-			int i;
-			for (i = 0; i < MAX_TEAM_ROLE; i++) {
-				if (g_roleData.common.team[i] >= 0 && g_roleData.roles[g_roleData.common.team[i]].speed > 70) {
-					goIn = TRUE;
-					break;
+	if (mx >= 0 && mx <MAP_WIDTH
+		&& my >= 0 && my < MAP_HEIGHT) {
+		if ((scence = g_entrances[mx][my] >= 0)) {
+			if ((g_roleData.scences[scence].enCondition == 0)) {
+				goIn = TRUE;
+			} else if ((g_roleData.scences[scence].enCondition == 2)) { //是否有人轻功超过70
+				int i;
+				for (i = 0; i < MAX_TEAM_ROLE; i++) {
+					if (g_roleData.common.team[i] >= 0 && g_roleData.roles[g_roleData.common.team[i]].speed > 70) {
+						goIn = TRUE;
+						break;
+					}
 				}
 			}
 		}
@@ -170,7 +173,6 @@ void InMap()
 
 	CmdScreenFadeIn(NULL);
 
-	CmdTalk(NULL);
 	WaitKey();
 
 	//PlayMp3(16, -1);

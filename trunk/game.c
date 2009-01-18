@@ -33,7 +33,7 @@ byte* g_effectBuff = NULL;
 uint32* g_actIdxBuff = NULL;
 byte* g_actionBuff = NULL;
 
-int curItem = 0;
+int g_usingItem = 0;
 int currentBattle = 0;
 EmInGame g_inGame = 0;
 //当前场景, 事件(在场景中的事件号), 使用物品, 战斗
@@ -607,29 +607,27 @@ sint32 Random(sint32 a, sint32 b)
 //初始化主角属性
 static void InitialRole()
 {
-	T_Role* hero = &g_roleData.roles[0];
+	strcpy(g_hero.name, Utf8ToBig5("江湖小蝦米"));
+	g_hero.maxLife = Random(25, 50);
+	g_hero.maxNeili = Random(25, 50);
+	g_hero.neiliType = Random(0, 2);
+	g_hero.incLife = Random(1, 10);
+	g_hero.attack = Random(25, 30);
+	g_hero.speed = Random(25, 30);
+	g_hero.defence = Random(25, 30);
+	g_hero.medcine = Random(25, 30);
+	g_hero.usePoi = Random(25, 30);
+	g_hero.medPoi = Random(25, 30);
+	g_hero.fist = Random(25, 30);
+	g_hero.sword = Random(25, 30);
+	g_hero.blade = Random(25, 30);
+	g_hero.unusual = Random(25, 30);
+	g_hero.hidWeapon = Random(25, 30);
+	g_hero.aptitude = Random(1, 100);
 
-	strcpy(hero->name, Utf8ToBig5("江湖小蝦米"));
-	hero->maxLife = Random(25, 50);
-	hero->maxNeili = Random(25, 50);
-	hero->neiliType = Random(0, 2);
-	hero->incLife = Random(1, 10);
-	hero->attack = Random(25, 30);
-	hero->speed = Random(25, 30);
-	hero->defence = Random(25, 30);
-	hero->medcine = Random(25, 30);
-	hero->usePoi = Random(25, 30);
-	hero->medPoi = Random(25, 30);
-	hero->fist = Random(25, 30);
-	hero->sword = Random(25, 30);
-	hero->blade = Random(25, 30);
-	hero->unusual = Random(25, 30);
-	hero->hidWeapon = Random(25, 30);
-	hero->aptitude = Random(1, 100);
-
-	hero->life = hero->maxLife;
-	hero->neili = hero->maxNeili;
-	hero->phyPower = MAX_PHYSICAL_POWER;
+	g_hero.life = g_hero.maxLife;
+	g_hero.neili = g_hero.maxNeili;
+	g_hero.phyPower = MAX_PHYSICAL_POWER;
 }
 
 #if 0
@@ -1475,9 +1473,9 @@ SDL_KEYUP:
 					if ((event.key.keysym.sym == sdlk_return) || (event.key.keysym.sym == sdlk_space))
 					{
 						ReDraw;
-						CurItem = RItemlist[itemlist[(y * col + x + atlu)]].Number;
-						if ((g_inGame <> 2) && (CurItem >= 0) && (itemlist[(y * col + x + atlu)] >= 0))
-							UseItem(CurItem);
+						g_usingItem = RItemlist[itemlist[(y * col + x + atlu)]].Number;
+						if ((g_inGame <> 2) && (g_usingItem >= 0) && (itemlist[(y * col + x + atlu)] >= 0))
+							UseItem(g_usingItem);
 						//ShowMenu(2);
 						result = true;
 						SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
@@ -1497,9 +1495,9 @@ SDL_MOUSEBUTTONUP:
 					if ((event.button.button == sdl_button_left))
 					{
 						ReDraw;
-						CurItem = RItemlist[itemlist[(y * col + x + atlu)]].Number;
-						if ((g_inGame <> 2) && (CurItem >= 0) && (itemlist[(y * col + x + atlu)] >= 0))
-							UseItem(CurItem);
+						g_usingItem = RItemlist[itemlist[(y * col + x + atlu)]].Number;
+						if ((g_inGame <> 2) && (g_usingItem >= 0) && (itemlist[(y * col + x + atlu)] >= 0))
+							UseItem(g_usingItem);
 						//ShowMenu(2);
 						result = true;
 						SDL_UpdateRect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
@@ -1790,7 +1788,7 @@ void int UseItem(inum = 0)()
 	int p = 0;
 	str, str1: widestring;
 {
-	CurItem = inum;
+	g_usingItem = inum;
 
 	switch (RItem[inum].ItemType) {
 0: //剧情物品
@@ -2003,26 +2001,25 @@ void MenuStatus()
 bool MagicLeveup(int role, int* nextLevelExp)
 {
 	bool levelup = FALSE;
-	T_Role* hero = &g_roleData.roles[role];
 	*nextLevelExp = MAGIC_NEXT_EXP_NOTHING;
-	if (hero->practiceBook >= 0)
+	if (g_hero.practiceBook >= 0)
 	{
 		int level = 0;
-		int magic = g_roleData.items[hero->practiceBook].magic;
+		int magic = g_roleData.items[g_hero.practiceBook].magic;
 		if (magic > 0) {
 			int i;
 			for (i = 0; i < MAGIC_MAX_NUM; i++) {
-				if (hero->magic[i] == magic)
+				if (g_hero.magic[i] == magic)
 				{
-					level = hero->magLevel[i] / 100 + 1;
+					level = g_hero.magLevel[i] / 100 + 1;
 					break;
 				}
 			}
 
 			if (level) {
 				if (level < MAGIC_MAX_LEVEL) {
-					*nextLevelExp = level * g_roleData.items[hero->practiceBook].needExp * (7 - hero->aptitude / 15);
-					if (hero->expForBook >= *nextLevelExp && level < 10) {
+					*nextLevelExp = level * g_roleData.items[g_hero.practiceBook].needExp * (7 - g_hero.aptitude / 15);
+					if (g_hero.expForBook >= *nextLevelExp && level < 10) {
 						levelup = TRUE;
 					}
 				} else {
@@ -2038,15 +2035,13 @@ bool MagicLeveup(int role, int* nextLevelExp)
 //显示状态
 static void ShowStatus(int role)
 {
-	T_Role* hero = &g_roleData.roles[role];
-
 	DrawFrameRectangle(STATUS_FRAME_X, STATUS_FRAME_Y, STATUS_FRAME_W, STATUS_FRAME_H, 0xff, 0, FRAME_TEXT_ALPHA);
 
 	//显示头像
-	DrawFacePic(hero->faceIndex, STATUS_FACE_X, STATUS_FACE_Y);
+	DrawFacePic(g_hero.faceIndex, STATUS_FACE_X, STATUS_FACE_Y);
 
 	//显示姓名
-	char* big5 = hero->name;
+	char* big5 = g_hero.name;
 	size_t big5Len = strlen(big5);
 	char utf8[NAME_UTF8_LEN] = {'\0'};
 	size_t utf8Len = NAME_UTF8_LEN;
@@ -2063,24 +2058,24 @@ static void ShowStatus(int role)
 
 	//第一列
 	DrawShadowText("等級", STATUS_TEXT_X(0), STATUS_TEXT_Y(5), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->level);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.level);
 	DrawShadowText(str, STATUS_TEXT_X(1), STATUS_TEXT_Y(5), TEXT_COLOR);
 
 	DrawShadowText("生命", STATUS_TEXT_X(0), STATUS_TEXT_Y(6), TEXT_COLOR);
-	if (hero->wound > WOUND_FATAL) {
+	if (g_hero.wound > WOUND_FATAL) {
 		color = TEXT_FATAL_COLOR;
-	} else if (hero->wound > WOUND_SERIOUS) {
+	} else if (g_hero.wound > WOUND_SERIOUS) {
 		color = TEXT_SERIOUS_COLOR;
 	} else {
 		color = TEXT_NORMAL_COLOR;
 	}
-	sprintf(str, STATUS_NUM_FORMAT_2, hero->life);
+	sprintf(str, STATUS_NUM_FORMAT_2, g_hero.life);
 	pos = DrawShadowText(str, STATUS_TEXT_X(1), STATUS_TEXT_Y(6), color);
 	pos = DrawShadowText("/", pos.x, STATUS_TEXT_Y(6), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_2, hero->maxLife);
-	if (hero->poisioning > WOUND_FATAL) {
+	sprintf(str, STATUS_NUM_FORMAT_2, g_hero.maxLife);
+	if (g_hero.poisioning > WOUND_FATAL) {
 		color = TEXT_FATAL_COLOR;
-	} else if (hero->wound > WOUND_SERIOUS) {
+	} else if (g_hero.wound > WOUND_SERIOUS) {
 		color = TEXT_SERIOUS_COLOR;
 	} else {
 		color = TEXT_NORMAL_COLOR;
@@ -2088,7 +2083,7 @@ static void ShowStatus(int role)
 	DrawShadowText(str, pos.x, STATUS_TEXT_Y(6), color);
 
 	DrawShadowText("内力", STATUS_TEXT_X(0), STATUS_TEXT_Y(7), TEXT_COLOR);
-	switch (hero->neiliType) {
+	switch (g_hero.neiliType) {
 		case EmMPYin:
 			color = TEXT_YIN_COLOR;
 			break;
@@ -2100,29 +2095,29 @@ static void ShowStatus(int role)
 			color = TEXT_NORMAL_COLOR;
 			break;
 	}
-	sprintf(str, STATUS_NUM_FORMAT_2, hero->neili);
+	sprintf(str, STATUS_NUM_FORMAT_2, g_hero.neili);
 	pos = DrawShadowText(str, STATUS_TEXT_X(1), STATUS_TEXT_Y(7), color);
 	pos = DrawShadowText("/", pos.x, STATUS_TEXT_Y(7), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_2, hero->maxNeili);
+	sprintf(str, STATUS_NUM_FORMAT_2, g_hero.maxNeili);
 	DrawShadowText(str, pos.x, STATUS_TEXT_Y(7), color);
 
 	DrawShadowText("體力", STATUS_TEXT_X(0), STATUS_TEXT_Y(8), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_2, hero->phyPower);
+	sprintf(str, STATUS_NUM_FORMAT_2, g_hero.phyPower);
 	pos = DrawShadowText(str, STATUS_TEXT_X(1), STATUS_TEXT_Y(8), TEXT_NORMAL_COLOR);
 	pos = DrawShadowText("/", pos.x, STATUS_TEXT_Y(8), TEXT_COLOR);
 	sprintf(str, STATUS_NUM_FORMAT_2, MAX_PHYSICAL_POWER);
 	DrawShadowText(str, pos.x, STATUS_TEXT_Y(8), TEXT_NORMAL_COLOR);
 
 	DrawShadowText("經驗", STATUS_TEXT_X(0), STATUS_TEXT_Y(9), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->exp);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.exp);
 	DrawShadowText(str, STATUS_TEXT_X(1), STATUS_TEXT_Y(9), TEXT_NORMAL_COLOR);
 
 	DrawShadowText("升級", STATUS_TEXT_X(0), STATUS_TEXT_Y(10), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, g_levelupList[hero->level - 1]);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_levelupList[g_hero.level - 1]);
 	DrawShadowText(str, STATUS_TEXT_X(1), STATUS_TEXT_Y(10), TEXT_NORMAL_COLOR);
 
 	DrawShadowText("資質", STATUS_TEXT_X(0), STATUS_TEXT_Y(13), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->aptitude);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.aptitude);
 	DrawShadowText(str, STATUS_TEXT_X(1), STATUS_TEXT_Y(13), TEXT_NORMAL_COLOR);
 
 	//第二列
@@ -2131,98 +2126,98 @@ static void ShowStatus(int role)
 	memset(&item, 0, sizeof(item));
 	int i;
 	for (i = 0; i < 2; i++) {
-		if (hero->equip[i] >= 0)
+		if (g_hero.equip[i] >= 0)
 		{
-			item.addLife			+= g_roleData.items[hero->equip[i]].addLife;
-			item.addMaxLife			+= g_roleData.items[hero->equip[i]].addMaxLife;
-			item.addPoi				+= g_roleData.items[hero->equip[i]].addPoi;
-			item.addPhyPower		+= g_roleData.items[hero->equip[i]].addPhyPower;
-			item.changeNeiliType	+= g_roleData.items[hero->equip[i]].changeNeiliType;
-			item.addNeili			+= g_roleData.items[hero->equip[i]].addNeili;
-			item.addMaxNeili		+= g_roleData.items[hero->equip[i]].addMaxNeili;
-			item.addAttack			+= g_roleData.items[hero->equip[i]].addAttack;
-			item.addSpeed			+= g_roleData.items[hero->equip[i]].addSpeed;
-			item.addDefence			+= g_roleData.items[hero->equip[i]].addDefence;
-			item.addMedcine			+= g_roleData.items[hero->equip[i]].addMedcine;
-			item.addUsePoi			+= g_roleData.items[hero->equip[i]].addUsePoi;
-			item.addMedPoi			+= g_roleData.items[hero->equip[i]].addMedPoi;
-			item.addDefPoi			+= g_roleData.items[hero->equip[i]].addDefPoi;
-			item.addFist			+= g_roleData.items[hero->equip[i]].addFist;
-			item.addSword			+= g_roleData.items[hero->equip[i]].addSword;
-			item.addBlade			+= g_roleData.items[hero->equip[i]].addBlade;
-			item.addUnusual			+= g_roleData.items[hero->equip[i]].addUnusual;
-			item.addHidWeapon		+= g_roleData.items[hero->equip[i]].addHidWeapon;
-			item.addKnowledge		+= g_roleData.items[hero->equip[i]].addKnowledge;
-			item.addEthics			+= g_roleData.items[hero->equip[i]].addEthics;
-			item.addAttTwice		+= g_roleData.items[hero->equip[i]].addAttTwice;
-			item.addAttPoi			+= g_roleData.items[hero->equip[i]].addAttPoi;
+			item.addLife			+= g_roleData.items[g_hero.equip[i]].addLife;
+			item.addMaxLife			+= g_roleData.items[g_hero.equip[i]].addMaxLife;
+			item.addPoi				+= g_roleData.items[g_hero.equip[i]].addPoi;
+			item.addPhyPower		+= g_roleData.items[g_hero.equip[i]].addPhyPower;
+			item.changeNeiliType	+= g_roleData.items[g_hero.equip[i]].changeNeiliType;
+			item.addNeili			+= g_roleData.items[g_hero.equip[i]].addNeili;
+			item.addMaxNeili		+= g_roleData.items[g_hero.equip[i]].addMaxNeili;
+			item.addAttack			+= g_roleData.items[g_hero.equip[i]].addAttack;
+			item.addSpeed			+= g_roleData.items[g_hero.equip[i]].addSpeed;
+			item.addDefence			+= g_roleData.items[g_hero.equip[i]].addDefence;
+			item.addMedcine			+= g_roleData.items[g_hero.equip[i]].addMedcine;
+			item.addUsePoi			+= g_roleData.items[g_hero.equip[i]].addUsePoi;
+			item.addMedPoi			+= g_roleData.items[g_hero.equip[i]].addMedPoi;
+			item.addDefPoi			+= g_roleData.items[g_hero.equip[i]].addDefPoi;
+			item.addFist			+= g_roleData.items[g_hero.equip[i]].addFist;
+			item.addSword			+= g_roleData.items[g_hero.equip[i]].addSword;
+			item.addBlade			+= g_roleData.items[g_hero.equip[i]].addBlade;
+			item.addUnusual			+= g_roleData.items[g_hero.equip[i]].addUnusual;
+			item.addHidWeapon		+= g_roleData.items[g_hero.equip[i]].addHidWeapon;
+			item.addKnowledge		+= g_roleData.items[g_hero.equip[i]].addKnowledge;
+			item.addEthics			+= g_roleData.items[g_hero.equip[i]].addEthics;
+			item.addAttTwice		+= g_roleData.items[g_hero.equip[i]].addAttTwice;
+			item.addAttPoi			+= g_roleData.items[g_hero.equip[i]].addAttPoi;
 
-			DrawBig5ShadowText(g_roleData.items[hero->equip[i]].name, STATUS_TEXT_X(3), STATUS_TEXT_Y(12 + i), TEXT_NORMAL_COLOR);
+			DrawBig5ShadowText(g_roleData.items[g_hero.equip[i]].name, STATUS_TEXT_X(3), STATUS_TEXT_Y(12 + i), TEXT_NORMAL_COLOR);
 		}
 	}
 	DrawShadowText("攻擊", STATUS_TEXT_X(2), STATUS_TEXT_Y(0), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->attack + item.addAttack);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.attack + item.addAttack);
 	DrawShadowText(str, STATUS_TEXT_X(3), STATUS_TEXT_Y(0), TEXT_NORMAL_COLOR);
 
 	DrawShadowText("防禦", STATUS_TEXT_X(2), STATUS_TEXT_Y(1), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->defence + item.addDefence);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.defence + item.addDefence);
 	DrawShadowText(str, STATUS_TEXT_X(3), STATUS_TEXT_Y(1), TEXT_NORMAL_COLOR);
 
 	DrawShadowText("輕功", STATUS_TEXT_X(2), STATUS_TEXT_Y(2), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->speed + item.addSpeed);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.speed + item.addSpeed);
 	DrawShadowText(str, STATUS_TEXT_X(3), STATUS_TEXT_Y(2), TEXT_NORMAL_COLOR);
 
 	DrawShadowText("醫療能力", STATUS_TEXT_X(2), STATUS_TEXT_Y(3), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->medcine + item.addMedcine);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.medcine + item.addMedcine);
 	DrawShadowText(str, STATUS_TEXT_X(3), STATUS_TEXT_Y(3), TEXT_NORMAL_COLOR);
 
 	DrawShadowText("用毒能力", STATUS_TEXT_X(2), STATUS_TEXT_Y(4), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->usePoi + item.addUsePoi);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.usePoi + item.addUsePoi);
 	DrawShadowText(str, STATUS_TEXT_X(3), STATUS_TEXT_Y(4), TEXT_NORMAL_COLOR);
 
 	DrawShadowText("解毒能力", STATUS_TEXT_X(2), STATUS_TEXT_Y(5), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->medPoi + item.addMedPoi);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.medPoi + item.addMedPoi);
 	DrawShadowText(str, STATUS_TEXT_X(3), STATUS_TEXT_Y(5), TEXT_NORMAL_COLOR);
 
 	DrawShadowText("拳掌功夫", STATUS_TEXT_X(2), STATUS_TEXT_Y(6), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->fist + item.addFist);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.fist + item.addFist);
 	DrawShadowText(str, STATUS_TEXT_X(3), STATUS_TEXT_Y(6), TEXT_NORMAL_COLOR);
 
 	DrawShadowText("御劍能力", STATUS_TEXT_X(2), STATUS_TEXT_Y(7), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->sword + item.addSword);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.sword + item.addSword);
 	DrawShadowText(str, STATUS_TEXT_X(3), STATUS_TEXT_Y(7), TEXT_NORMAL_COLOR);
 
 	DrawShadowText("耍刀技巧", STATUS_TEXT_X(2), STATUS_TEXT_Y(8), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->blade + item.addBlade);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.blade + item.addBlade);
 	DrawShadowText(str, STATUS_TEXT_X(3), STATUS_TEXT_Y(8), TEXT_NORMAL_COLOR);
 
 	DrawShadowText("特殊兵器", STATUS_TEXT_X(2), STATUS_TEXT_Y(9), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->unusual + item.addUnusual);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.unusual + item.addUnusual);
 	DrawShadowText(str, STATUS_TEXT_X(3), STATUS_TEXT_Y(9), TEXT_NORMAL_COLOR);
 
 	DrawShadowText("暗器技巧", STATUS_TEXT_X(2), STATUS_TEXT_Y(10), TEXT_COLOR);
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->hidWeapon + item.addHidWeapon);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.hidWeapon + item.addHidWeapon);
 	DrawShadowText(str, STATUS_TEXT_X(3), STATUS_TEXT_Y(10), TEXT_NORMAL_COLOR);
 
 	DrawShadowText("受傷", STATUS_TEXT_X(2), STATUS_TEXT_Y(13), TEXT_COLOR);
-	if (hero->wound > WOUND_FATAL) {
+	if (g_hero.wound > WOUND_FATAL) {
 		color = TEXT_FATAL_COLOR;
-	} else if (hero->wound > WOUND_SERIOUS) {
+	} else if (g_hero.wound > WOUND_SERIOUS) {
 		color = TEXT_SERIOUS_COLOR;
 	} else {
 		color = TEXT_NORMAL_COLOR;
 	}
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->wound);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.wound);
 	DrawShadowText(str, STATUS_TEXT_X(3), STATUS_TEXT_Y(13), color);
 
 	//第三列
 	DrawShadowText("所會武功", STATUS_TEXT_X(4), STATUS_TEXT_Y(0), TEXT_COLOR);
 	for (i = 0; i < 10; i++) {
-		int magic = hero->magic[i];
+		int magic = g_hero.magic[i];
 		if (magic > 0)
 		{
 			DrawBig5ShadowText(g_roleData.magics[magic].name, STATUS_TEXT_X(4), STATUS_TEXT_Y(i + 1), TEXT_NORMAL_COLOR);
-			sprintf(str, STATUS_NUM_FORMAT_1, hero->magLevel[i] / 100 + 1);
+			sprintf(str, STATUS_NUM_FORMAT_1, g_hero.magLevel[i] / 100 + 1);
 			DrawShadowText(str, STATUS_TEXT_X(5), STATUS_TEXT_Y(i + 1), TEXT_NORMAL_COLOR);
 		}
 	}
@@ -2234,13 +2229,13 @@ static void ShowStatus(int role)
 		case MAGIC_NEXT_EXP_NOTHING:
 			break;
 		case MAGIC_NEXT_EXP_NA:
-			sprintf(str, STATUS_NUM_FORMAT_2, hero->expForBook);
+			sprintf(str, STATUS_NUM_FORMAT_2, g_hero.expForBook);
 			pos = DrawShadowText(str, STATUS_TEXT_X(5), STATUS_TEXT_Y(11), TEXT_NORMAL_COLOR);
 			pos = DrawShadowText("/", pos.x, STATUS_TEXT_Y(11), TEXT_COLOR);
 			DrawShadowText("=", pos.x, STATUS_TEXT_Y(11), TEXT_NORMAL_COLOR);
 			break;
 		default:
-			sprintf(str, STATUS_NUM_FORMAT_2, hero->expForBook);
+			sprintf(str, STATUS_NUM_FORMAT_2, g_hero.expForBook);
 			pos = DrawShadowText(str, STATUS_TEXT_X(5), STATUS_TEXT_Y(11), TEXT_NORMAL_COLOR);
 			pos = DrawShadowText("/", pos.x, STATUS_TEXT_Y(11), TEXT_COLOR);
 			sprintf(str, STATUS_NUM_FORMAT_2, nextLevelExp);
@@ -2249,14 +2244,14 @@ static void ShowStatus(int role)
 	}
 
 	DrawShadowText("中毒", STATUS_TEXT_X(4), STATUS_TEXT_Y(13), TEXT_COLOR);
-	if (hero->poisioning > WOUND_FATAL) {
+	if (g_hero.poisioning > WOUND_FATAL) {
 		color = TEXT_FATAL_COLOR;
-	} else if (hero->wound > WOUND_SERIOUS) {
+	} else if (g_hero.wound > WOUND_SERIOUS) {
 		color = TEXT_SERIOUS_COLOR;
 	} else {
 		color = TEXT_NORMAL_COLOR;
 	}
-	sprintf(str, STATUS_NUM_FORMAT_1, hero->poisioning);
+	sprintf(str, STATUS_NUM_FORMAT_1, g_hero.poisioning);
 	DrawShadowText(str, STATUS_TEXT_X(5), STATUS_TEXT_Y(13), color);
 
 	UpdateScreen();
@@ -2699,38 +2694,6 @@ str: widestring;
 
 }
 
-void ReArrangeItem()
-	var
-	int   i = 0;
-	int p = 0;
-	item, amount: array of integer;
-{
-	p = 0;
-	setlength(item, MAX_ITEM_NUM);
-	setlength(amount, MAX_ITEM_NUM);
-	for i = 0 to MAX_ITEM_NUM - 1 do
-	{
-		if ((RItemList[i].Number >= 0) && (RItemList[i].Amount > 0))
-		{
-			item[p] = RItemList[i].Number;
-			amount[p] = RItemList[i].Amount;
-			p = p + 1;
-		}
-	}
-	for i = 0 to MAX_ITEM_NUM - 1 do
-	{
-		if (i < p)
-		{
-			RItemList[i].Number = item[i];
-			RItemList[i].Amount = amount[i];
-		}
-		else {
-			RItemList[i].Number = -1;
-			RItemList[i].Amount = 0;
-		}
-	}
-
-}
 
 void EndAmi()
 	var
@@ -4760,7 +4723,7 @@ str: widestring;
 {
 	if (MenuItem)
 	{
-		inum = CurItem;
+		inum = g_usingItem;
 		rnum = brole[bnum].rnum;
 		mode = Ritem[inum].ItemType;
 		switch (mode) {
