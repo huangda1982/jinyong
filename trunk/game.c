@@ -95,7 +95,12 @@ static void Quit();
 *******************************************************************************/
 
 //初始化字体, 音效, 视频, 启动游戏
-int main()
+#ifdef WIN32
+#include <windows.h>
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine, int iCmdShow)
+#else
+int main(int argc, char* argv[])
+#endif
 {
 	srand(clock());
 
@@ -669,6 +674,7 @@ static void InitialRole()
 
 static void InGame(bool start)
 {
+printf("ingame\n");
 	if (start) {
 	//	InScence(SCENCE_HOME, EmInScenceStart);
 
