@@ -1,9 +1,14 @@
-CC=gcc
+CC=gcc -mconsole
 CFLAGS=-g
+
+CP=cp -rf
+RM=rm -rf
 
 TARGET=jy
 
 SDL_LIBS=-lSDL -lSDL_gfx -lSDL_ttf -lSDL_mixer
+LIBS=$(SDL_LIBS) \
+	-liconv
 OBJS=game.o \
 	 map.o \
 	 scence.o \
@@ -12,14 +17,14 @@ OBJS=game.o \
 	 sound.o
 
 all: clean $(TARGET)
-	-cp -rf $(TARGET) ..
-	-cp -rf font ..
+	-$(CP)  $(TARGET) ..
+	-$(CP)  font ..
 
 .c.o:
 	$(CC) $(CFLAGS) -c $<
 
 $(TARGET): $(OBJS)
-	$(CC) -o $(TARGET) $(CFLAGS) $(OBJS) $(SDL_LIBS)
+	$(CC) -o $(TARGET) $(CFLAGS) $(OBJS) $(LIBS)
 
 clean:
-	-rm -f $(TARGET) $(OBJS)
+	-$(RM) $(TARGET) $(OBJS)
