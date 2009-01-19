@@ -140,7 +140,6 @@ static void PutPixel(SDL_Surface* surface, int x, int y, uint32 pixel)
 //RLE8图片绘制子程，所有相关子程均对此封装
 void DrawPic(SDL_Surface* surface, int index, int x, int y, uint32* idxBuffer, byte* picBuffer, int highlight)
 {
-	//printf("index = %d\n", index);
 	T_PicRect* picRect = NULL;
 	byte* nextPicBuffer = NULL;
 
@@ -173,7 +172,6 @@ void DrawPic(SDL_Surface* surface, int index, int x, int y, uint32* idxBuffer, b
 						byte* next = picBuffer + (uint8)*picBuffer + 1;
 						picBuffer++;
 						for (; picBuffer < next; picBuffer++) {
-							//printf("x = %d, y = %d\n", px, py);
 							PutPixel(surface, l + px++, t + py, GetPalettePixel(surface->format, *picBuffer, 255, highlight));
 						}
 					}
@@ -312,8 +310,8 @@ static void DrawAction(int index, int x, int y)
 //初始化字体
 void InitialFont()
 {
-	g_utf8ToBig5 = iconv_open("BIG5", "UTF8");
-	g_big5ToUtf8 = iconv_open("UTF8", "BIG5");
+	g_utf8ToBig5 = iconv_open("BIG5", "UTF-8");
+	g_big5ToUtf8 = iconv_open("UTF-8", "BIG5");
 
 	TTF_Init();
 	g_HanFont = TTF_OpenFont(HAN_FONT, g_HanFontSize);
