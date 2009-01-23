@@ -53,6 +53,9 @@ void DrawPic(SDL_Surface* destSurface, int index, int x, int y, uint32* idxBuffe
 void DrawFacePic(int index, int x, int y);
 void DrawBigPicOnScreen(int index, byte* buffer);
 
+T_Position MapScenceXYToScreenPos(int mx, int my, int cx, int cy);
+T_Position ScreenXYToMapScencePos(int x, int y, int cx, int cy);
+
 void UpdateScreen();
 
 void InitialFont();

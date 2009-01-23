@@ -45,13 +45,14 @@ extern int g_usingItem;
 
 void* LoadFile(char* filename, void* buffer, size_t size);
 
-T_Position GetMapScenceXYPos(int mx, int my, int cx, int cy);
-
 void RedrawWithoutUpdate();
 void Redraw();
 
 int WaitKey();
 int PollKey();
 int InScence(int scence, EmInScence inScence);
+
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
 
 #endif //__GAME_H__

@@ -674,9 +674,8 @@ static void InitialRole()
 
 static void InGame(bool start)
 {
-printf("ingame\n");
 	if (start) {
-	//	InScence(SCENCE_HOME, EmInScenceStart);
+		//InScence(SCENCE_HOME, EmInScenceStart);
 
 		g_mx = g_roleData.scences[SCENCE_HOME].mapEntrance1X;
 		g_my = g_roleData.scences[SCENCE_HOME].mapEntrance1Y + 1;

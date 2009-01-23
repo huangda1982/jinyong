@@ -62,11 +62,21 @@ void DrawScenceWithoutUpdate()
 		cy = g_sy;
 	}
 
-	for (sy = 0; sy < SCENCE_WIDTH; sy++) {
-		for (sx = 0; sx < SCENCE_WIDTH; sx++) {
-			T_Position pos = GetMapScenceXYPos(sx, sy, cx, cy);
-			/*if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH)
-				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT))*/ {
+
+	int minSx = ScreenXYToMapScencePos(PIC_POS_MAX_X, PIC_POS_MIN_Y, cx, cy).x;
+	if (minSx < 0) minSx = 0;
+	int minSy = ScreenXYToMapScencePos(PIC_POS_MIN_X, PIC_POS_MIN_Y, cx, cy).y;
+	if (minSy < 0) minSy = 0;
+	int maxSx = ScreenXYToMapScencePos(PIC_POS_MIN_X, PIC_POS_MAX_Y, cx, cy).x;
+	if (maxSx > MAP_WIDTH) maxSx = MAP_WIDTH;
+	int maxSy = ScreenXYToMapScencePos(PIC_POS_MAX_X, PIC_POS_MAX_Y, cx, cy).y;
+	if (maxSy > MAP_HEIGHT) maxSy = MAP_HEIGHT;
+
+	for (sy = minSy; sy < maxSy; sy++) {
+		for (sx = minSx; sx < maxSx; sx++) {
+			T_Position pos = MapScenceXYToScreenPos(sx, sy, cx, cy);
+			if ((pos.x >= PIC_POS_MIN_X && pos.x < PIC_POS_MAX_X)
+				&& (pos.y >= PIC_POS_MIN_Y && pos.y < PIC_POS_MAX_Y)) {
 				DrawScencePic(g_curScenceData[EmScenceLayerGround][sx][sy] / 2, pos.x, pos.y);
 
 				if (g_curScenceData[EmScenceLayerBuilding][sx][sy] > 0) {
