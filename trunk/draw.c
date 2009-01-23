@@ -238,11 +238,20 @@ static T_Position GetScreenPosInScence(int sx, int sy)
 #endif
 
 //获取地图中坐标在屏幕上的位置(中心参照)
-T_Position GetMapScenceXYPos(int mx, int my, int cmx, int cmy)
+T_Position MapScenceXYToScreenPos(int mx, int my, int cx, int cy)
 {
 	T_Position pos = {.x = 0, .y = 0};
-	pos.x = -(mx - cmx) * CELL_WIDTH / 2 + (my - cmy) * CELL_WIDTH / 2 + SCREEN_CENTER_X;
-	pos.y = (mx - cmx) * CELL_HEIGHT / 2 + (my - cmy) * CELL_HEIGHT / 2 + SCREEN_CENTER_Y;
+	pos.x = -(mx - cx) * CELL_WIDTH / 2 + (my - cy) * CELL_WIDTH / 2 + SCREEN_CENTER_X;
+	pos.y = (mx - cx) * CELL_HEIGHT / 2 + (my - cy) * CELL_HEIGHT / 2 + SCREEN_CENTER_Y;
+
+	return pos;
+}
+
+T_Position ScreenXYToMapScencePos(int x, int y, int cx, int cy)
+{
+	T_Position pos = {.x = 0, .y = 0};
+	pos.x = -(x - SCREEN_CENTER_X) / CELL_WIDTH + (y - SCREEN_CENTER_Y) / CELL_HEIGHT + cx;
+	pos.y = (x - SCREEN_CENTER_X) / CELL_WIDTH + (y - SCREEN_CENTER_Y) / CELL_HEIGHT + cy;
 
 	return pos;
 }

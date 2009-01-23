@@ -53,46 +53,53 @@ void DrawMapWithoutUpdate()
 	int cx = g_mx;
 	int cy = g_my;
 
-	for (my = 0; my < MAP_HEIGHT; my++) {
-		for (mx = 0; mx < MAP_WIDTH; mx++) {
-			T_Position pos = GetMapScenceXYPos(mx, my, cx, cy);
-			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH + 200)
-				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT + 200)) {
+	//清屏
+	DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0xff);
+
+	int minMx = ScreenXYToMapScencePos(PIC_POS_MAX_X, PIC_POS_MIN_Y, cx, cy).x;
+	if (minMx < 0) minMx = 0;
+	int minMy = ScreenXYToMapScencePos(PIC_POS_MIN_X, PIC_POS_MIN_Y, cx, cy).y;
+	if (minMy < 0) minMy = 0;
+	int maxMx = ScreenXYToMapScencePos(PIC_POS_MIN_X, PIC_POS_MAX_Y, cx, cy).x;
+	if (maxMx > MAP_WIDTH) maxMx = MAP_WIDTH;
+	int maxMy = ScreenXYToMapScencePos(PIC_POS_MAX_X, PIC_POS_MAX_Y, cx, cy).y;
+	if (maxMy > MAP_HEIGHT) maxMy = MAP_HEIGHT;
+
+		for (mx = minMx; mx < maxMx; mx++) {
+	for (my = minMy; my < maxMy; my++) {
+			T_Position pos = MapScenceXYToScreenPos(mx, my, cx, cy);
+			if ((pos.x >= PIC_POS_MIN_X && pos.x < PIC_POS_MAX_X)
+				&& (pos.y >= PIC_POS_MIN_Y && pos.y < PIC_POS_MAX_Y)) {
 				DrawMapPic(g_map[mx][my] / 2, pos.x, pos.y);
 
 				if (g_ground[mx][my] > 0) {
 					DrawMapPic(g_ground[mx][my] / 2, pos.x, pos.y);
 				}
 			}
-		}
-	}
+		//}
+	//}
 
-	bool buildingFlag[MAP_WIDTH][MAP_HEIGHT] = {{FALSE}};
-	for (my = cy - MAP_PIC_MAX_OFFSET_CELL_Y; my < cy + MAP_PIC_MAX_OFFSET_CELL_Y; my++) {
-		for (mx = cx - MAP_PIC_MAX_OFFSET_CELL_X; mx < cx + MAP_PIC_MAX_OFFSET_CELL_X; mx++) {
+		//for (mx = minMx; mx < maxMx; mx++) {
+	//for (my = minMy; my < maxMy; my++) {
 			//s.weyl说游戏中xy是反的，开始没在意，现在终于信了。
 			int by = g_buildingX[mx][my];
 			int bx = g_buildingY[mx][my];
-			T_Position pos = GetMapScenceXYPos(bx, by, cx, cy);
-			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH + MAP_PIC_MAX_OFFSET_X)
-				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT + MAP_PIC_MAX_OFFSET_Y)) {
-				if (/*!buildingFlag[bx][by] && */g_building[bx][by] > 0 && g_buildingX[mx + 1][my] != bx && g_buildingX[mx][my + 1] != by) {
-					DrawMapPic(g_building[bx][by] / 2, pos.x, pos.y);
-					buildingFlag[bx][by] = TRUE;
+			T_Position bPos = MapScenceXYToScreenPos(bx, by, cx, cy);
+			if ((bPos.x >= PIC_POS_MIN_X && bPos.x < PIC_POS_MAX_X)
+				&& (bPos.y >= PIC_POS_MIN_Y && bPos.y < PIC_POS_MAX_Y)) {
+				if (g_building[bx][by] > 0 && g_buildingX[mx + 1][my] != bx && g_buildingX[mx][my + 1] != by) {
+					DrawMapPic(g_building[bx][by] / 2, bPos.x, bPos.y);
 				}
 			}
 
-			pos = GetMapScenceXYPos(mx, my, cx, cy);
-			if ((pos.x + CELL_WIDTH >= 0 && pos.x < SCREEN_WIDTH + CELL_WIDTH + 200)
-				&& (pos.y + CELL_HEIGHT >= 0 && pos.y < SCREEN_HEIGHT + CELL_HEIGHT + 200)) {
-				if (mx == g_mx && my == g_my) {
-					if (g_ship) {
-						DrawMapPic(SHIP_PIC_OFFSET + g_mFace * SHIP_PIC_NUM + g_mShip, pos.x, pos.y);
-					} else if (g_mStep || !g_mRest) {
-						DrawMapPic(WALK_PIC_OFFSET + g_mFace * WALK_PIC_NUM + g_mStep, pos.x, pos.y);
-					} else {
-						DrawMapPic(REST_PIC_OFFSET + g_mFace * REST_PIC_NUM + (g_mRest - 1), pos.x, pos.y);
-					}
+			//pos = MapScenceXYToScreenPos(mx, my, cx, cy);
+			if (mx == g_mx && my == g_my) {
+				if (g_ship) {
+					DrawMapPic(SHIP_PIC_OFFSET + g_mFace * SHIP_PIC_NUM + g_mShip, pos.x, pos.y);
+				} else if (g_mStep || !g_mRest) {
+					DrawMapPic(WALK_PIC_OFFSET + g_mFace * WALK_PIC_NUM + g_mStep, pos.x, pos.y);
+				} else {
+					DrawMapPic(REST_PIC_OFFSET + g_mFace * REST_PIC_NUM + (g_mRest - 1), pos.x, pos.y);
 				}
 			}
 		}
