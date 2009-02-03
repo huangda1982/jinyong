@@ -11,7 +11,7 @@
 * Graphic                                                                      *
 *******************************************************************************/
 
-#define HAN_FONT	"font/bkai00mp.ttf"
+#define HAN_FONT		(PKGDATADIR "font/bkai00mp.ttf")
 
 #define SCREEN_WIDTH	640
 #define SCREEN_HEIGHT	480

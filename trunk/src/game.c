@@ -8,6 +8,8 @@
 * Headers                                                                      *
 *******************************************************************************/
 
+#include "../config.h"
+
 #include "draw.h"
 #include "sound.h"
 #include "map.h"
@@ -399,9 +401,11 @@ void UpdateScence(int sx, int sy)
 void* LoadFile(char* filename, void* buffer, size_t size)
 {
 	FILE* file = NULL;
+	char path[PATH_MAX] = PKGDATADIR "game/";
 
 	if (filename) {
-		if ((file = fopen(filename, "rb"))) {
+		strcat(path, filename);
+		if ((file = fopen(path, "rb"))) {
 			if (size == 0) {
 				fseek(file, 0, SEEK_END);
 				size = ftell(file);
@@ -418,7 +422,7 @@ void* LoadFile(char* filename, void* buffer, size_t size)
 				fclose(file);
 			}
 		} else {
-			printf("LoadFile: Failed to load \"%s\"\n", filename);
+			printf("LoadFile: Failed to load \"%s\"\n", path);
 		}
 	}
 
@@ -496,14 +500,14 @@ void ReadFiles()
 	LoadFile("buildy.002", g_buildingY, sizeof(g_buildingY));
 
 	/*
-	   LoadFile("leave.bin", g_levelupList, sizeof(g_levelupList));
+   LoadFile("leave.bin", g_levelupList, sizeof(g_levelupList));
 
-	   LoadFile("effect.bin", g_effectList, sizeof(g_effectList));
+   LoadFile("effect.bin", g_effectList, sizeof(g_effectList));
 
-	   LoadFile("levelup.bin", g_levelupList, sizeof(g_levelupList));
+   LoadFile("levelup.bin", g_levelupList, sizeof(g_levelupList));
 
-	   LoadFile("match.bin", g_matchList, sizeof(g_matchList));
-	   */
+   LoadFile("match.bin", g_matchList, sizeof(g_matchList));
+   */
 }
 
 void UpdateScreen()
