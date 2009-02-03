@@ -325,6 +325,7 @@ void InitialFont()
 	TTF_Init();
 	g_HanFont = TTF_OpenFont(HAN_FONT, g_HanFontSize);
 	if (g_HanFont == NULL) {
+		printf("Can\'t initialize font: %s\n", HAN_FONT);
 		exit(-1);
 	}
 }
