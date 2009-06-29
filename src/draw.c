@@ -202,8 +202,6 @@ void DrawBigPicOnScreen(int index, byte* buffer)
 			float zoom = (float)SCREEN_WIDTH / BIG_PIC_WIDTH;
 			int h = BIG_PIC_HEIGHT * zoom;
 			int y = (SCREEN_HEIGHT - h) / 2;
-			//SDL_SoftStretch(surface, NULL, g_screenSurface, &(SDL_Rect){0, y, SCREEN_WIDTH, h});
-			//SDL_BlitSurface(surface, NULL, g_screenSurface, &(SDL_Rect){0, y, SCREEN_WIDTH, h});
 			SDL_Surface* zoomedSurface = NULL;
 			if ((zoomedSurface = zoomSurface(surface, zoom, zoom, TRUE))) {
 				SDL_BlitSurface(zoomedSurface, NULL, g_screenSurface, &(SDL_Rect){0, y, SCREEN_WIDTH, SCREEN_HEIGHT});
