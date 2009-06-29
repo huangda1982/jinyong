@@ -205,6 +205,7 @@ int InScence(int scence, EmInScence inScence)
 			//是否有第3类事件位于场景入口
 			//***CheckEvent3;
 
+		SDL_EnableKeyRepeat(KEY_REPEAT_DELAY, KEY_REPEAT);
 		while (TRUE) {
 			//检查是否位于出口
 			if ((g_sx == g_roleData.scences[g_curScence].exitX[0] && g_sy == g_roleData.scences[g_curScence].exitY[0])

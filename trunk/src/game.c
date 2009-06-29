@@ -110,8 +110,6 @@ int main(int argc, char* argv[])
 	InitialVedio();
 	InitialAudio();
 
-	SDL_EnableKeyRepeat(KEY_REPEAT, KEY_REPEAT);
-
 	Start();
 
 	Quit();
@@ -249,6 +247,7 @@ int WaitKey()
 				key = event.key.keysym.sym;
 				break;
 			}
+			printf("key down!!\n");
 		} else if (event.type == SDL_KEYUP) {
 			key = -1;
 		}
@@ -423,6 +422,7 @@ void* LoadFile(char* filename, void* buffer, size_t size)
 			}
 		} else {
 			printf("LoadFile: Failed to load \"%s\"\n", path);
+			Quit();
 		}
 	}
 
@@ -532,6 +532,7 @@ static void Start()
 	grpBuffer = LoadFile("title.grp", NULL, 0);
 
 	//DrawRectangle(270, 150, 100, 70, 0, 20);
+
 	UpdateScreen();
 
 	//PlayMp3(1, -1);
@@ -540,6 +541,7 @@ static void Start()
 	//SDL_Event event;			//事件
 	int key;
 	//while (SDL_WaitEvent(&event) >= 0) {
+	SDL_EnableKeyRepeat(KEY_REPEAT_DELAY_MENU, KEY_REPEAT_MENU);
 	while (TRUE) {
 		DrawBigPicOnScreen(0, bigBuffer);
 		DrawPicOnScreen(0, 275, 250, idxBuffer, grpBuffer, 0);
@@ -559,6 +561,7 @@ static void Start()
 						//str = "請以繁體中文輸入主角之姓名，選定屬性後按Esc              ";
 						//name = InputBox("Enter name", str, "我是主角");
 
+						SDL_EnableKeyRepeat(KEY_REPEAT_DELAY_MENU, KEY_REPEAT_MENU);
 						while(TRUE) {
 							DrawBigPicOnScreen(0, bigBuffer);
 
@@ -1018,88 +1021,45 @@ void ShowCommonScrollMenu(x, y, w, max, maxshow, menu, int menutop = 0)()
 		}
 
 }
+#endif
 
 //仅有两个选项的横排选单, 为美观使用横排
 //此类选单中每个选项限制为两个中文字, 仅适用于提问"继续", "取消"的情况
 
-int function CommonMenu2(x = 0;
-		int  y = 0;
-		int w = 0int ) = 0;
-var
-int   menu = 0;
-int menup = 0;
+bool ShowYesNoBox(char* boxString[2])
 {
-	menu = 0;
-	//DrawMMap;
-	showcommonMenu2(x, y, w, menu);
-	SDL_UpdateRect(g_screenSurface, x, y, w + 1, 29);
-	while (SDL_WaitEvent(@event) >= 0) do
-	{
-		switch (event.type) {
-SDL_QUITEV:
-			if (messagedlg("Are you sure to quit?", mtConfirmation, [mbOk, mbCancel], 0) == idOK) Quit;
-SDL_KEYUP:
-			{
-				if ((event.key.keysym.sym == sdlk_left) || (event.key.keysym.sym == sdlk_right))
-				{
-					if (menu == 1) menu = 0 else menu = 1;
-					showcommonMenu2(x, y, w, menu);
-					SDL_UpdateRect(g_screenSurface, x, y, w + 1, 29);
-				}
-				if (((event.key.keysym.sym == sdlk_escape)) && (g_inGame <= 2))
-				{
-					result = -1;
-					ReDraw;
-					SDL_UpdateRect(g_screenSurface, x, y, w + 1, 29);
-					break;
-				}
-				if ((event.key.keysym.sym == sdlk_return) || (event.key.keysym.sym == sdlk_space))
-				{
-					result = menu;
-					Redraw;
-					SDL_UpdateRect(g_screenSurface, x, y, w + 1, 29);
-					break;
-				}
-			}
-SDL_MOUSEBUTTONUP:
-			{
-				if ((event.button.button == sdl_button_right) && (g_inGame <= 2))
-				{
-					result = -1;
-					ReDraw;
-					SDL_UpdateRect(g_screenSurface, x, y, w + 1, 29);
-					break;
-				}
-				if ((event.button.button == sdl_button_left))
-				{
-					result = menu;
-					Redraw;
-					SDL_UpdateRect(g_screenSurface, x, y, w + 1, 29);
-					break;
-				}
-			}
-SDL_MOUSEMOTION:
-			{
-				if ((event.button.x >= x) && (event.button.x < x + w) && (event.button.y > y) && (event.button.y < y + 29))
-				{
-					menup = menu;
-					menu = (event.button.x - x - 2) / 50;
-					if (menu > 1) menu = 1;
-					if (menu < 0) menu = 0;
-					if (menup <> menu)
-					{
-						showcommonMenu2(x, y, w, menu);
-						SDL_UpdateRect(g_screenSurface, x, y, w + 1, 29);
-					}
-				}
-			}
-		}
-	}
-	//清空键盘键和鼠标键值, 避免影响其余部分
-	event.key.keysym.sym = 0;
-	event.button.button = 0;
+	bool yesNo = FALSE;
 
+	char str[TEXT_UTF8_LEN];
+	sprintf(str, "%s / %s", boxString[0], boxString[1]);
+
+	bool loop = TRUE;
+	SDL_EnableKeyRepeat(KEY_REPEAT_DELAY_MENU, KEY_REPEAT_MENU);
+	while (loop) {
+		DrawYesNoBox(boxString, yesNo);
+		UpdateScreen();
+
+		switch (WaitKey()) {
+			case SDLK_RETURN:
+			case SDLK_SPACE:
+				loop = FALSE;
+				break;
+			case SDLK_LEFT:
+				yesNo = TRUE;
+				break;
+			case SDLK_RIGHT:
+				yesNo = FALSE;
+				break;
+			default:
+				break;
+		}
+
+		RedrawWithoutUpdate();
+	}
+
+	return yesNo;
 }
+#if 0
 
 //显示仅有两个选项的横排选单
 

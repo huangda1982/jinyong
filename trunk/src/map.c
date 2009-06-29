@@ -171,6 +171,13 @@ static bool GoIn(int mx, int my)
 //于主地图行走
 void InMap()
 {
+	char* aaa[] = {
+		"過招嗎？",
+		"過招",
+		"罷了"
+	};
+	printf("%s\n", ShowYesNoBox(aaa) ? "過招" : "罷了");
+
 	uint32 next_time = SDL_GetTicks() + 3000;
 	g_inGame = EmInGameMap;
 
@@ -185,6 +192,7 @@ void InMap()
 	//PlayMp3(16, -1);
 
 	//事件轮询(并非等待)
+	SDL_EnableKeyRepeat(KEY_REPEAT_DELAY, KEY_REPEAT);
 	while (TRUE) {
 		//如果当前处于标题画面, 则退出, 用于战斗失败
 		//***********

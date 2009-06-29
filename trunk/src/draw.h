@@ -62,6 +62,7 @@ void InitialFont();
 T_Position DrawShadowText(char* str, int x, int y, uint8 color);
 T_Position DrawBig5ShadowText(char* big5, int x, int y, uint8 color);
 void DrawFrameText(char* str, uint8 txtColor, uint8 frmColor);
+void DrawYesNoBox(char* boxStr[2], bool yesNo);
 T_Position DrawBig5Text(char* big5, int x, int y, uint8 color);
 
 void DrawTalk(char* str, int x, int y, int w, int h, int face, int fx, int fy, int tx, int ty, int tw, int th);
