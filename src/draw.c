@@ -378,14 +378,17 @@ T_Position DrawBig5ShadowText(char* big5, int x, int y, uint8 color)
 //显示带边框的文字, 仅用于UTF8
 void DrawFrameText(char* str, uint8 txtColor, uint8 frmColor)
 {
-	uint8 shdColor = txtColor >= 2 ? txtColor -2 : 0xff;
+	uint8 shdColor = txtColor >= 2 ? txtColor - 2 : 0xff;
+
 	SDL_Surface* shadow = TTF_RenderUTF8_Blended(g_HanFont, str, GetSDLColor(shdColor));
 	SDL_Surface* text = TTF_RenderUTF8_Blended(g_HanFont, str, GetSDLColor(txtColor));
 	if (shadow && text) {
-		int x = SCREEN_CENTER_X - (text->w + FRAME_TEXT_PADDING * 2 + 1) /2;
-		int y = SCREEN_CENTER_Y - (text->h + FRAME_TEXT_PADDING * 2) /2;
+		int w = text->w + FRAME_TEXT_PADDING * 2 + 1;
+		int h = text->h + FRAME_TEXT_PADDING * 2;
+		int x = SCREEN_CENTER_X - w / 2;
+		int y = SCREEN_CENTER_Y - h / 2;
 
-		DrawFrameRectangle(x, y, text->w + FRAME_TEXT_PADDING * 2 + 1, text->h + FRAME_TEXT_PADDING * 2, frmColor, 0, FRAME_TEXT_ALPHA);
+		DrawFrameRectangle(x, y, w, h, frmColor, 0, FRAME_TEXT_ALPHA);
 		//DrawFrameRectangle(x + 1, y + 1, text->w + FRAME_TEXT_PADDING * 2 + 1 -2 , text->h + FRAME_TEXT_PADDING * 2 - 2, frmColor, 0, FRAME_TEXT_ALPHA);
 
 		SDL_BlitSurface(shadow, NULL, g_screenSurface, &(SDL_Rect){x + FRAME_TEXT_PADDING + 1, y + FRAME_TEXT_PADDING, g_screenSurface->w, g_screenSurface->h});
@@ -394,6 +397,44 @@ void DrawFrameText(char* str, uint8 txtColor, uint8 frmColor)
 		SDL_FreeSurface(shadow);
 		SDL_FreeSurface(text);
 	}
+}
+
+//显示
+void DrawYesNoBox(char* boxStr[3], bool yesNo)
+{
+	SDL_Surface* title = TTF_RenderUTF8_Blended(g_HanFont, boxStr[0], GetSDLColor(TEXT_NORMAL_COLOR));
+
+	SDL_Surface* yes = TTF_RenderUTF8_Blended(g_HanFont, boxStr[1], GetSDLColor(yesNo ? TEXT_SELECT_COLOR : TEXT_DESELECT_COLOR));
+	SDL_Surface* no = TTF_RenderUTF8_Blended(g_HanFont, boxStr[2], GetSDLColor(!yesNo ? TEXT_SELECT_COLOR : TEXT_DESELECT_COLOR));
+
+	SDL_Surface* slash = TTF_RenderUTF8_Blended(g_HanFont, " / ", GetSDLColor(TEXT_NORMAL_COLOR));
+
+	if (title, yes && no && slash) {
+		int w = max(title->w, yes->w + slash->w + no->w) + FRAME_TEXT_PADDING * 2;
+		int h = title->h + FRAME_TEXT_PADDING + max(max(yes->h, slash->h), no->h) + FRAME_TEXT_PADDING * 2;
+		int x = SCREEN_CENTER_X - w / 2;
+		int y = SCREEN_CENTER_Y - h / 2;
+
+		DrawFrameRectangle(x, y, w, h, TEXT_COLOR, 0, FRAME_TEXT_ALPHA);
+
+		x += FRAME_TEXT_PADDING;
+		y += FRAME_TEXT_PADDING;
+		SDL_BlitSurface(title, NULL, g_screenSurface, &(SDL_Rect){x, y, g_screenSurface->w, g_screenSurface->h});
+
+		y += title->h + FRAME_TEXT_PADDING;
+		SDL_BlitSurface(yes, NULL, g_screenSurface, &(SDL_Rect){x, y, g_screenSurface->w, g_screenSurface->h});
+
+		x += yes->w;
+		SDL_BlitSurface(slash, NULL, g_screenSurface, &(SDL_Rect){x, y, g_screenSurface->w, g_screenSurface->h});
+
+		x += slash->w;
+		SDL_BlitSurface(no, NULL, g_screenSurface, &(SDL_Rect){x, y, g_screenSurface->w, g_screenSurface->h});
+
+		SDL_FreeSurface(title);
+		SDL_FreeSurface(yes);
+		SDL_FreeSurface(no);
+		SDL_FreeSurface(slash);
+	} 
 }
 
 //显示BIG5文字

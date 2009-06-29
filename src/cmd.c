@@ -264,7 +264,7 @@ void CmdChageScence(sint16** cmd)	//3
 }
 
 //是否使用了某剧情物品
-void CmdIsUsingSpItem(sint16** cmd)
+void CmdIsUsingSpItem(sint16** cmd)	//4
 {
 	(*cmd)++;
 
@@ -275,27 +275,27 @@ void CmdIsUsingSpItem(sint16** cmd)
 	(*cmd) += item == g_usingItem ? jump1 : jump2;
 }
 
-#if 0
 //询问是否战斗
-int CmdChalenge(sint16** cmd)
+int CmdChalenge(sint16** cmd)	//5
 {
 	(*cmd)++;
 
 	int jump1 = *((*cmd)++);
 	int jump2 = *((*cmd)++);
 
-	setlength(menustring, 3);
-	menustring[0] = " 取消";
-	menustring[1] = " 戰鬥";
-	menustring[2] = " 是否與之戰鬥？";
-	drawtextwithrect(@menustring[2][1], SCREEN_CENTER_X - 75, SCREEN_CENTER_Y - 85, 150, COLOR(7), COLOR(5));
-	menu = commonmenu2(SCREEN_CENTER_X - 49, SCREEN_CENTER_Y - 50, 98);
-	if (menu == 1) result = jump1 else result = jump2;
-	redraw;
-	sdl_updaterect(g_screenSurface, 0, 0, g_screenSurface.w, g_screenSurface.h);
+	char* str[] = {
+		"是否與之過招？",
+		"罢了",
+		"過招"
+	};
 
+	bool select = ShowYesNoBox(str);
+
+	(*cmd) += select ? jump1 : jump2;
+	Redraw();
 }
 
+#if 0
 //战斗
 
 int function instruct_6(battlenum = 0;

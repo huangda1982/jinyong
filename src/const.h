@@ -69,11 +69,16 @@
 #define FACE_PIC_H	58
 
 #define TEXT_COLOR			0x23
+
 #define TEXT_NORMAL_COLOR	0x07
-#define TEXT_FATAL_COLOR	0x16
 #define TEXT_SERIOUS_COLOR	0x10
+#define TEXT_FATAL_COLOR	0x16
+
+#define TEXT_SELECT_COLOR	TEXT_COLOR
+#define TEXT_DESELECT_COLOR	TEXT_NORMAL_COLOR
+
 #define TEXT_YIN_COLOR		0x50
-#define TEXT_YANG_COLOR		TEXT_NORMAL_COLOR
+#define TEXT_YANG_COLOR		TEXT_DESELECT_COLOR
 #define TEXT_UNIFIED_COLOR	0x66
 
 #define FRAME_TEXT_ALPHA		0x4f
@@ -148,7 +153,10 @@
 * Input                                                                        *
 *******************************************************************************/
 
-#define KEY_REPEAT_DELAY	200
+#define KEY_REPEAT_DELAY_MENU	200
+#define KEY_REPEAT_MENU			100
+
+#define KEY_REPEAT_DELAY	50
 #define KEY_REPEAT			50
 
 #define KEYUP	-1

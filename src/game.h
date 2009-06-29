@@ -50,6 +50,9 @@ void Redraw();
 
 int WaitKey();
 int PollKey();
+
+bool ShowYesNoBox(char* boxString[2]);
+
 int InScence(int scence, EmInScence inScence);
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
